@@ -119,7 +119,8 @@
                 filterAll: "All Grades", addTeacher: "Add Teacher", addCategory: "Add Category",
                 addSub: "Add Sub", addGrade: "Add Grade", gradeName: "Grade Name",
                 gradeFee: "Base Fee", todaySchedule: "Today's Schedule",
-                noLectures: "No lectures scheduled for today.", empty: "No records found.", action: "Action"
+                noLectures: "No lectures scheduled for today.", empty: "No records found.", action: "Action",
+                online: "Connected", offline: "Offline"
             },
             ar: {
                 dashboard: "نظرة عامة", volume: "إجمالي الإيرادات", assets: "عدد الطلاب",
@@ -130,7 +131,8 @@
                 filterAll: "كل المستويات", addTeacher: "إضافة معلم", addCategory: "إضافة تصنيف",
                 addSub: "إضافة فرعي", addGrade: "إضافة مستوى", gradeName: "اسم المستوى",
                 gradeFee: "الرسوم الأساسية", todaySchedule: "محاضرات اليوم",
-                noLectures: "لا توجد محاضرات مجدولة لليوم.", empty: "لا توجد سجلات حالية.", action: "إجراء"
+                noLectures: "لا توجد محاضرات مجدولة لليوم.", empty: "لا توجد سجلات حالية.", action: "إجراء",
+                online: "متصل", offline: "غير متصل"
             }
         };
 
@@ -156,6 +158,7 @@
             searchQuery: '',
             gradeFilter: 'All',
             user: null,
+            isConnected: false,
             data: {
                 students: [],
                 income: [],
@@ -195,10 +198,12 @@
                 }
             } catch (error) {
                 console.error("Auth error:", error);
+                pushNotify("Auth Error: Make sure Anonymous Auth is enabled in Firebase Console.");
             }
 
             onAuthStateChanged(auth, (user) => {
                 state.user = user;
+                state.isConnected = !!user;
                 if (user) {
                     setupListeners();
                 }
@@ -215,7 +220,12 @@
                 onSnapshot(q, (snapshot) => {
                     state.data[collName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     render();
-                }, (err) => console.error(`Error syncing ${collName}:`, err));
+                }, (err) => {
+                    console.error(`Error syncing ${collName}:`, err);
+                    if (err.code === 'permission-denied') {
+                        pushNotify("Firestore Permission Denied. Check your Rules.");
+                    }
+                });
             };
 
             ['students', 'income', 'expenses', 'subjects'].forEach(syncCollection);
@@ -346,7 +356,7 @@
             toast.className = 'bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 fade-in border-l-4 border-mantiq-cyan transition-all';
             toast.innerHTML = `<i data-lucide="info" class="text-mantiq-cyan w-5 h-5"></i><span class="text-xs font-bold">${msg}</span>`;
             container.appendChild(toast); lucide.createIcons();
-            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 4000);
         }
 
         // --- Rendering Components ---
@@ -430,7 +440,6 @@
             `;
         }
 
-        // New Added Missing Function
         function renderCashFlow() {
             const totals = getTotals();
             let all = [
@@ -558,8 +567,18 @@
                     </aside>
                     <div class="flex-1 h-screen overflow-y-auto custom-scrollbar relative">
                         <header class="h-20 lg:h-24 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10">
-                            <div class="flex items-center gap-4"><button onclick="window.toggleSidebar()" class="lg:hidden p-2 text-mantiq-navy dark:text-white"><i data-lucide="menu" size="24"></i></button><h2 class="text-lg lg:text-2xl font-black tracking-tight text-mantiq-navy dark:text-white uppercase truncate">${state.viewingStudentId ? ut('studentProfile') : _t(currentNav.label.en, currentNav.label.ar)}</h2></div>
-                            <div class="flex items-center gap-2 lg:gap-4"><button onclick="window.toggleLanguage()" class="text-[8px] lg:text-[10px] font-black uppercase px-3 lg:px-4 py-2 border rounded-xl border-slate-200 dark:border-slate-800 whitespace-nowrap">${state.language === 'en' ? 'Arabic' : 'English'}</button><button onclick="window.toggleDarkMode()" class="p-2.5 lg:p-3 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-800"><i data-lucide="${state.darkMode ? 'sun' : 'moon'}" size="16"></i></button></div>
+                            <div class="flex items-center gap-4">
+                                <button onclick="window.toggleSidebar()" class="lg:hidden p-2 text-mantiq-navy dark:text-white"><i data-lucide="menu" size="24"></i></button>
+                                <h2 class="text-lg lg:text-2xl font-black tracking-tight text-mantiq-navy dark:text-white uppercase truncate">${state.viewingStudentId ? ut('studentProfile') : _t(currentNav.label.en, currentNav.label.ar)}</h2>
+                            </div>
+                            <div class="flex items-center gap-2 lg:gap-4">
+                                <div class="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
+                                    <div class="w-2 h-2 rounded-full ${state.isConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'} animate-pulse"></div>
+                                    <span class="text-[8px] font-black uppercase text-slate-500">${state.isConnected ? ut('online') : ut('offline')}</span>
+                                </div>
+                                <button onclick="window.toggleLanguage()" class="text-[8px] lg:text-[10px] font-black uppercase px-3 lg:px-4 py-2 border rounded-xl border-slate-200 dark:border-slate-800 whitespace-nowrap">${state.language === 'en' ? 'Arabic' : 'English'}</button>
+                                <button onclick="window.toggleDarkMode()" class="p-2.5 lg:p-3 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-800"><i data-lucide="${state.darkMode ? 'sun' : 'moon'}" size="16"></i></button>
+                            </div>
                         </header>
                         <main class="p-4 lg:p-12 max-w-7xl mx-auto">${state.viewingStudentId ? renderStudentSummary(state.viewingStudentId) : (state.page === 'dashboard' ? renderDashboard() : (state.page === 'config' ? renderConfig() : (state.page === 'cash_flow' ? renderCashFlow() : renderTable())))}</main>
                     </div>

@@ -269,7 +269,24 @@
         };
 
         // --- Business Logic ---
-        function generateID(prefix = 'STU-') { return prefix + Math.floor(1000 + Math.random() * 9000); }
+        
+        // Revised generateID to follow a sequence based on current data
+        function generateID(prefix = 'STU-', currentList = []) { 
+            let max = 0;
+            const idKey = prefix === 'STU-' ? 'Stu-ID' : 'Expense ID';
+            
+            currentList.forEach(item => {
+                const idStr = item[idKey] || '';
+                const numPart = parseInt(idStr.replace(prefix, ''));
+                if (!isNaN(numPart) && numPart > max) {
+                    max = numPart;
+                }
+            });
+            
+            const nextID = max + 1;
+            // Pad to 4 digits for consistent look: STU-0001
+            return prefix + String(nextID).padStart(4, '0');
+        }
 
         function getTotals() {
             const inc = state.data.income.reduce((s, i) => s + (parseFloat(i.Amount) || 0), 0);
@@ -487,7 +504,6 @@
                             <div class="space-y-3">${Object.entries(state.data.config.gradeFees).map(([grade, fee]) => `<div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800/40 dark:border-none"><div><p class="text-sm font-black">${grade}</p><p class="text-[10px] text-mantiq-cyan font-bold uppercase">${fee.toLocaleString()} EGP</p></div><button onclick="window.deleteGrade('${grade}')" class="text-rose-400"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
                         </div>
                     </div>
-                    <!-- Categories Sections Removed for brevity but apply same dark:border-none shadow classes -->
                 </div>
             `;
         }
@@ -607,8 +623,14 @@
                 const s = state.data.students.find(s => s['Student Name'] === record['Student Name']);
                 if (s) { record['Stu-ID'] = s['Stu-ID']; record['Grade'] = s['Grade']; }
             }
-            if (state.page === 'students' && !record['Stu-ID']) record['Stu-ID'] = generateID('STU-');
-            if (state.page === 'expenses' && !record['Expense ID']) record['Expense ID'] = generateID('EXP-');
+            
+            // Sequential ID generation for Students and Expenses
+            if (state.page === 'students' && !record['Stu-ID']) {
+                record['Stu-ID'] = generateID('STU-', state.data.students);
+            }
+            if (state.page === 'expenses' && !record['Expense ID']) {
+                record['Expense ID'] = generateID('EXP-', state.data.expenses);
+            }
 
             state.loading = true; render();
             try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.page), record); pushNotify("Success!"); state.isModalOpen = false; } catch (err) { pushNotify("Error: " + err.message); }
@@ -621,7 +643,7 @@
             if (state.data.students.length > 0) return;
             const sNames = ["Ahmed Mohamed", "Sara Khalid"];
             sNames.forEach((n, i) => {
-                const id = 'STU-' + (1001 + i);
+                const id = 'STU-' + String(i + 1).padStart(4, '0');
                 state.data.students.push({ 'Stu-ID': id, 'Student Name': n, 'Age': 6 + i, 'Phone': "0102345678" + i, 'Grade': '1st Grade' });
             });
             const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });

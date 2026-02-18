@@ -98,8 +98,13 @@
                 addTeacher: "Add Teacher",
                 addCategory: "Add Category",
                 addSub: "Add Sub",
+                addGrade: "Add Grade",
+                gradeName: "Grade Name",
+                gradeFee: "Base Fee",
                 todaySchedule: "Today's Schedule",
-                noLectures: "No lectures scheduled for today."
+                noLectures: "No lectures scheduled for today.",
+                empty: "No records found.",
+                action: "Action"
             },
             ar: {
                 dashboard: "نظرة عامة",
@@ -120,8 +125,13 @@
                 addTeacher: "إضافة معلم",
                 addCategory: "إضافة تصنيف",
                 addSub: "إضافة فرعي",
+                addGrade: "إضافة مستوى",
+                gradeName: "اسم المستوى",
+                gradeFee: "الرسوم الأساسية",
                 todaySchedule: "محاضرات اليوم",
-                noLectures: "لا توجد محاضرات مجدولة لليوم."
+                noLectures: "لا توجد محاضرات مجدولة لليوم.",
+                empty: "لا توجد سجلات حالية.",
+                action: "إجراء"
             }
         };
 
@@ -139,7 +149,7 @@
         let state = {
             page: 'dashboard',
             darkMode: false,
-            language: 'ar',
+            language: 'en', // Changed default to English
             isModalOpen: false,
             isSidebarOpen: false,
             loading: false,
@@ -221,6 +231,26 @@
 
         function deleteTeacher(index) {
             state.data.config.teachers.splice(index, 1); render(); pushNotify("Teacher removed.");
+        }
+
+        function addGrade() {
+            const nameInput = document.getElementById('config-grade-name-input');
+            const feeInput = document.getElementById('config-grade-fee-input');
+            const name = nameInput.value.trim();
+            const fee = parseFloat(feeInput.value);
+            if (name && !isNaN(fee)) {
+                state.data.config.gradeFees[name] = fee;
+                nameInput.value = '';
+                feeInput.value = '';
+                render();
+                pushNotify("Grade level added.");
+            }
+        }
+
+        function deleteGrade(grade) {
+            delete state.data.config.gradeFees[grade];
+            render();
+            pushNotify("Grade level removed.");
         }
 
         function addCategory(type) {
@@ -406,10 +436,21 @@
                     </aside>
                     <div class="flex-1 h-screen overflow-y-auto custom-scrollbar relative">
                         <header class="h-20 lg:h-24 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10">
-                            <div class="flex items-center gap-4"><button onclick="state.isSidebarOpen = true; render();" class="lg:hidden p-2 text-mantiq-navy dark:text-white"><i data-lucide="menu" size="24"></i></button><h2 class="text-lg lg:text-2xl font-black tracking-tight text-mantiq-navy dark:text-white uppercase truncate">${state.viewingStudentId ? ut('studentProfile') : _t(currentNav.label.en, currentNav.label.ar)}</h2></div>
-                            <div class="flex items-center gap-2 lg:gap-4"><button onclick="state.language = state.language === 'en' ? 'ar' : 'en'; document.body.dir=state.language==='ar'?'rtl':'ltr'; render();" class="text-[8px] lg:text-[10px] font-black uppercase px-3 lg:px-4 py-2 border rounded-xl border-slate-200 dark:border-slate-800 whitespace-nowrap">${state.language === 'en' ? 'Arabic' : 'English'}</button><button onclick="state.darkMode=!state.darkMode; document.documentElement.classList.toggle('dark'); render();" class="p-2.5 lg:p-3 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-800"><i data-lucide="${state.darkMode ? 'sun' : 'moon'}" size="16"></i></button></div>
+                            <div class="flex items-center gap-4">
+                                <button onclick="state.isSidebarOpen = true; render();" class="lg:hidden p-2 text-mantiq-navy dark:text-white"><i data-lucide="menu" size="24"></i></button>
+                                <h2 class="text-lg lg:text-2xl font-black tracking-tight text-mantiq-navy dark:text-white uppercase truncate">
+                                    ${state.viewingStudentId ? ut('studentProfile') : _t(currentNav.label.en, currentNav.label.ar)}
+                                </h2>
+                            </div>
+                            <div class="flex items-center gap-2 lg:gap-4">
+                                <button onclick="state.language = state.language === 'en' ? 'ar' : 'en'; document.body.dir=state.language==='ar'?'rtl':'ltr'; render();" class="text-[8px] lg:text-[10px] font-black uppercase px-3 lg:px-4 py-2 border rounded-xl border-slate-200 dark:border-slate-800 whitespace-nowrap">${state.language === 'en' ? 'Arabic' : 'English'}</button>
+                                <button onclick="state.darkMode=!state.darkMode; document.documentElement.classList.toggle('dark'); render();" class="p-2.5 lg:p-3 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-800"><i data-lucide="${state.darkMode ? 'sun' : 'moon'}" size="16"></i></button>
+                            </div>
                         </header>
-                        <main class="p-4 lg:p-12 max-w-7xl mx-auto">${state.viewingStudentId ? renderStudentSummary(state.viewingStudentId) : (state.page === 'dashboard' ? renderDashboard() : (state.page === 'config' ? renderConfig() : (state.page === 'cash_flow' ? renderCashFlow() : renderTable())))}</main>
+
+                        <main class="p-4 lg:p-12 max-w-7xl mx-auto">
+                            ${state.viewingStudentId ? renderStudentSummary(state.viewingStudentId) : (state.page === 'dashboard' ? renderDashboard() : (state.page === 'config' ? renderConfig() : (state.page === 'cash_flow' ? renderCashFlow() : renderTable())))}
+                        </main>
                     </div>
                 </div>
                 ${state.isModalOpen ? renderModal() : ''}
@@ -422,22 +463,77 @@
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
                         <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-2xl">
                             <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="user-plus" class="text-mantiq-cyan"></i> Teachers</h3>
-                            <div class="flex gap-2 mb-6"><input id="config-teacher-input" type="text" placeholder="${ut('addTeacher')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan min-w-0" /><button onclick="addTeacher()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy p-3 rounded-xl hover:scale-105 transition-transform"><i data-lucide="plus"></i></button></div>
-                            <div class="space-y-3">${state.data.config.teachers.map((t, idx) => `<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800"> <span class="text-sm font-bold">${t}</span> <button onclick="deleteTeacher(${idx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
+                            <div class="flex gap-2 mb-6">
+                                <input id="config-teacher-input" type="text" placeholder="${ut('addTeacher')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan min-w-0" />
+                                <button onclick="addTeacher()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy p-3 rounded-xl hover:scale-105 transition-transform"><i data-lucide="plus"></i></button>
+                            </div>
+                            <div class="space-y-3">
+                                ${state.data.config.teachers.map((t, idx) => `
+                                    <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800"> 
+                                        <span class="text-sm font-bold">${t}</span> 
+                                        <button onclick="deleteTeacher(${idx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="trash-2" size="16"></i></button>
+                                    </div>`).join('')}
+                            </div>
                         </div>
-                        <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-2xl space-y-10">
-                             <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="layers" class="text-mantiq-cyan"></i> Categories</h3>
+
+                        <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-2xl">
+                            <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="graduation-cap" class="text-mantiq-cyan"></i> Grades & Fees</h3>
+                            <div class="space-y-3 mb-6">
+                                <input id="config-grade-name-input" type="text" placeholder="${ut('gradeName')}..." class="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan" />
+                                <div class="flex gap-2">
+                                    <input id="config-grade-fee-input" type="number" placeholder="${ut('gradeFee')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan" />
+                                    <button onclick="addGrade()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy p-3 rounded-xl hover:scale-105 transition-transform font-black text-xs uppercase px-6">${ut('addGrade')}</button>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                ${Object.entries(state.data.config.gradeFees).map(([grade, fee]) => `
+                                    <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                        <div>
+                                            <p class="text-sm font-black">${grade}</p>
+                                            <p class="text-[10px] text-mantiq-cyan font-bold uppercase tracking-widest">${fee.toLocaleString()} EGP</p>
+                                        </div>
+                                        <button onclick="deleteGrade('${grade}')" class="text-rose-400 hover:text-rose-600"><i data-lucide="trash-2" size="16"></i></button>
+                                    </div>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-2xl space-y-10">
+                         <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="layers" class="text-mantiq-cyan"></i> Financial Categories</h3>
+                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                              <div class="space-y-4">
                                  <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-l-2 border-emerald-500 pl-2">Income Structure</p>
                                  <div class="flex gap-2"><input id="config-income-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold min-w-0" /><button onclick="addCategory('income')" class="bg-emerald-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button></div>
-                                 <div class="grid grid-cols-1 gap-4">${state.data.config.incomeCategories.map((cat, cIdx) => `<div class="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800"><div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="deleteCategory('income', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div><div class="flex flex-wrap gap-2 mb-3">${cat.subs.map((s, sIdx) => `<span class="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="deleteSub('income', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}</div><div class="flex gap-2"><input id="config-income-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="addSub('income', ${cIdx})" class="text-emerald-500"><i data-lucide="plus-circle" size="18"></i></button></div></div>`).join('')}</div>
+                                 <div class="grid grid-cols-1 gap-4">
+                                    ${state.data.config.incomeCategories.map((cat, cIdx) => `
+                                         <div class="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                             <div class="flex justify-between items-center mb-3">
+                                                 <span class="text-[10px] font-black uppercase">${cat.name}</span>
+                                                 <button onclick="deleteCategory('income', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button>
+                                             </div>
+                                             <div class="flex flex-wrap gap-2 mb-3">
+                                                 ${cat.subs.map((s, sIdx) => `<span class="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="deleteSub('income', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}
+                                             </div>
+                                             <div class="flex gap-2"><input id="config-income-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="addSub('income', ${cIdx})" class="text-emerald-500"><i data-lucide="plus-circle" size="18"></i></button></div>
+                                         </div>`).join('')}
+                                 </div>
                              </div>
+
                              <div class="space-y-4">
                                  <p class="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-2 border-rose-500 pl-2">Expense Structure</p>
                                  <div class="flex gap-2"><input id="config-expense-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold min-w-0" /><button onclick="addCategory('expense')" class="bg-rose-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button></div>
-                                 <div class="grid grid-cols-1 gap-4">${state.data.config.expenseCategories.map((cat, cIdx) => `<div class="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800"><div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="deleteCategory('expense', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div><div class="flex flex-wrap gap-2 mb-3">${cat.subs.map((s, sIdx) => `<span class="bg-rose-50 dark:bg-rose-950/20 text-rose-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="deleteSub('expense', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}</div><div class="flex gap-2"><input id="config-expense-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="addSub('expense', ${cIdx})" class="text-rose-500"><i data-lucide="plus-circle" size="18"></i></button></div></div>`).join('')}</div>
+                                 <div class="grid grid-cols-1 gap-4">
+                                     ${state.data.config.expenseCategories.map((cat, cIdx) => `
+                                         <div class="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                             <div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="deleteCategory('expense', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div>
+                                             <div class="flex flex-wrap gap-2 mb-3">
+                                                 ${cat.subs.map((s, sIdx) => `<span class="bg-rose-50 dark:bg-rose-950/20 text-rose-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="deleteSub('expense', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}
+                                             </div>
+                                             <div class="flex gap-2"><input id="config-expense-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="addSub('expense', ${cIdx})" class="text-rose-500"><i data-lucide="plus-circle" size="18"></i></button></div>
+                                         </div>`).join('')}
+                                 </div>
                              </div>
-                        </div>
+                         </div>
                     </div>
                 </div>
             `;
@@ -473,6 +569,30 @@
                     </div>
                 </div>
             `;
+        }
+
+        async function handleAddData(e) {
+            e.preventDefault();
+            const form = document.getElementById('add-record-form');
+            const formData = new FormData(form);
+            const record = {};
+            formData.forEach((v, k) => record[k] = v);
+            
+            if (state.page === 'income' && record['Student Name']) {
+                const s = state.data.students.find(s => s['Student Name'] === record['Student Name']);
+                if (s) record['Stu-ID'] = s['Stu-ID'];
+            }
+            if (state.page === 'students' && !record['Stu-ID']) record['Stu-ID'] = generateID('STU-');
+            if (state.page === 'expenses' && !record['Expense ID']) record['Expense ID'] = generateID('EXP-');
+
+            state.loading = true; render();
+            try {
+                if (!state.data[state.page]) state.data[state.page] = [];
+                state.data[state.page] = [record, ...state.data[state.page]];
+                pushNotify("Entry Saved Successfully");
+                state.isModalOpen = false;
+            } catch (err) { pushNotify("Error: " + err.message); }
+            state.loading = false; render();
         }
 
         function render() {

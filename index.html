@@ -13,12 +13,30 @@
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        /** * DEPLOYMENT NOTE (GitHub/Vercel):
+         * Updated with your specific Firebase project credentials.
+         */
+        const externalConfig = {
+            apiKey: "AIzaSyACmad2fQGzF_L1B7WXRYQGqbRx_hKQ2ns",
+            authDomain: "mantiqedu.firebaseapp.com",
+            projectId: "mantiqedu",
+            storageBucket: "mantiqedu.firebasestorage.app",
+            messagingSenderId: "226946538055",
+            appId: "1:226946538055:web:f31e5a7f80662366e02f62",
+            measurementId: "G-BFGV0W27QJ"
+        };
+
         // --- Firebase Configuration & Initialization ---
-        const firebaseConfig = JSON.parse(__firebase_config);
+        const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) 
+            ? JSON.parse(__firebase_config) 
+            : externalConfig;
+            
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // appId is used for Firestore pathing.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mantiq-edu-prod';
 
         // Global instances for the app logic
         window.mantiqDb = db;
@@ -192,7 +210,6 @@
             const db = window.mantiqDb;
             const appId = window.mantiqAppId;
 
-            // Helper to sync collections
             const syncCollection = (collName) => {
                 const q = collection(db, 'artifacts', appId, 'public', 'data', collName);
                 onSnapshot(q, (snapshot) => {
@@ -203,13 +220,11 @@
 
             ['students', 'income', 'expenses', 'subjects'].forEach(syncCollection);
 
-            // Sync Settings/Config
             const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
             onSnapshot(configDoc, (docSnap) => {
                 if (docSnap.exists()) {
                     state.data.config = docSnap.data();
                 } else {
-                    // Initialize if empty
                     setDoc(configDoc, state.data.config);
                 }
                 render();
@@ -250,7 +265,6 @@
             }
         };
 
-        // --- Action Handlers (Firebase Connected) ---
         window.addTeacher = async () => {
             const input = document.getElementById('config-teacher-input');
             const name = input.value.trim();
@@ -260,13 +274,13 @@
                 await updateFirebaseConfig();
                 pushNotify("Teacher added.");
             }
-        }
+        };
 
         window.deleteTeacher = async (index) => {
             state.data.config.teachers.splice(index, 1);
             await updateFirebaseConfig();
             pushNotify("Teacher removed.");
-        }
+        };
 
         window.addGrade = async () => {
             const nameInput = document.getElementById('config-grade-name-input');
@@ -280,13 +294,13 @@
                 await updateFirebaseConfig();
                 pushNotify("Grade level added.");
             }
-        }
+        };
 
         window.deleteGrade = async (grade) => {
             delete state.data.config.gradeFees[grade];
             await updateFirebaseConfig();
             pushNotify("Grade level removed.");
-        }
+        };
 
         window.addCategory = async (type) => {
             const input = document.getElementById(`config-${type}-cat-input`);
@@ -297,13 +311,13 @@
                 input.value = '';
                 await updateFirebaseConfig();
             }
-        }
+        };
 
         window.deleteCategory = async (type, index) => {
             const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
             list.splice(index, 1);
             await updateFirebaseConfig();
-        }
+        };
 
         window.addSub = async (type, catIdx) => {
             const input = document.getElementById(`config-${type}-sub-input-${catIdx}`);
@@ -314,17 +328,17 @@
                 input.value = '';
                 await updateFirebaseConfig();
             }
-        }
+        };
 
         window.deleteSub = async (type, catIdx, subIdx) => {
             const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
             list[catIdx].subs.splice(subIdx, 1);
             await updateFirebaseConfig();
-        }
+        };
 
         window.setPage = (p) => {
             state.page = p; state.viewingStudentId = null; state.searchQuery = ''; state.gradeFilter = 'All'; state.isSidebarOpen = false; render();
-        }
+        };
 
         function pushNotify(msg) {
             const container = document.getElementById('notification-container');
@@ -416,24 +430,68 @@
             `;
         }
 
+        // New Added Missing Function
         function renderCashFlow() {
             const totals = getTotals();
-            let all = [...state.data.income.map(x => ({ ...x, type: 'in', label: x['Student Name'] })), ...state.data.expenses.map(x => ({ ...x, type: 'out', label: x['Title'] }))].sort((a,b) => new Date(b.Date) - new Date(a.Date));
-            if (state.searchQuery) { const q = state.searchQuery.toLowerCase(); all = all.filter(item => item.label.toLowerCase().includes(q) || item.Category.toLowerCase().includes(q)); }
+            let all = [
+                ...state.data.income.map(x => ({ ...x, type: 'in', label: x['Student Name'] })), 
+                ...state.data.expenses.map(x => ({ ...x, type: 'out', label: x['Title'] }))
+            ].sort((a,b) => new Date(b.Date) - new Date(a.Date));
+            
+            if (state.searchQuery) { 
+                const q = state.searchQuery.toLowerCase(); 
+                all = all.filter(item => item.label.toLowerCase().includes(q) || (item.Category && item.Category.toLowerCase().includes(q))); 
+            }
+            
             return `
                 <div class="fade-in space-y-8">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-                        <div class="bg-emerald-50 dark:bg-emerald-950/20 p-6 rounded-[1.5rem] border border-emerald-100 dark:border-none shadow-sm dark:shadow-xl"><h4 class="text-emerald-600 text-[10px] font-black uppercase mb-1">${ut('inflow')}</h4><p class="text-2xl lg:text-3xl font-black text-emerald-700 dark:text-emerald-300 tracking-tighter">${totals.inc.toLocaleString()} EGP</p></div>
-                        <div class="bg-rose-50 dark:bg-rose-950/20 p-6 rounded-[1.5rem] border border-rose-100 dark:border-none shadow-sm dark:shadow-xl"><h4 class="text-rose-600 text-[10px] font-black uppercase mb-1">${ut('outflow')}</h4><p class="text-2xl lg:text-3xl font-black text-rose-700 dark:text-rose-300 tracking-tighter">${totals.exp.toLocaleString()} EGP</p></div>
-                        <div class="bg-mantiq-navy dark:bg-white p-6 rounded-[1.5rem] shadow-xl"><h4 class="text-mantiq-cyan text-[10px] font-black uppercase mb-1">${ut('netCash')}</h4><p class="text-2xl lg:text-3xl font-black text-white dark:text-mantiq-navy tracking-tighter">${totals.net.toLocaleString()} EGP</p></div>
+                        <div class="bg-emerald-50 dark:bg-emerald-950/20 p-6 rounded-[1.5rem] border border-emerald-100 dark:border-none shadow-sm dark:shadow-xl">
+                            <h4 class="text-emerald-600 text-[10px] font-black uppercase mb-1">${ut('inflow')}</h4>
+                            <p class="text-2xl lg:text-3xl font-black text-emerald-700 dark:text-emerald-300 tracking-tighter">${totals.inc.toLocaleString()} EGP</p>
+                        </div>
+                        <div class="bg-rose-50 dark:bg-rose-950/20 p-6 rounded-[1.5rem] border border-rose-100 dark:border-none shadow-sm dark:shadow-xl">
+                            <h4 class="text-rose-600 text-[10px] font-black uppercase mb-1">${ut('outflow')}</h4>
+                            <p class="text-2xl lg:text-3xl font-black text-rose-700 dark:text-rose-300 tracking-tighter">${totals.exp.toLocaleString()} EGP</p>
+                        </div>
+                        <div class="bg-mantiq-navy dark:bg-white p-6 rounded-[1.5rem] shadow-xl">
+                            <h4 class="text-mantiq-cyan text-[10px] font-black uppercase mb-1">${ut('netCash')}</h4>
+                            <p class="text-2xl lg:text-3xl font-black text-white dark:text-mantiq-navy tracking-tighter">${totals.net.toLocaleString()} EGP</p>
+                        </div>
                     </div>
                     <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-none p-4 lg:p-6 shadow-sm dark:shadow-2xl overflow-hidden">
-                        <div class="mb-6"><div class="relative"><i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i><input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="state.searchQuery = this.value; render();" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-mantiq-cyan border-none" /></div></div>
+                        <div class="mb-6">
+                            <div class="relative">
+                                <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+                                <input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="window.handleSearch(this.value)" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-mantiq-cyan border-none" />
+                            </div>
+                        </div>
                         <div class="overflow-x-auto custom-scrollbar">
                             <table class="w-full text-left border-collapse" dir="${state.language==='ar'?'rtl':'ltr'}">
-                                <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-400"><tr><th class="px-6 py-6 whitespace-nowrap">Status</th><th class="px-6 py-6 whitespace-nowrap">Label</th><th class="px-6 py-6 whitespace-nowrap">Category</th><th class="px-6 py-6 whitespace-nowrap">Amount</th><th class="px-6 py-6 whitespace-nowrap">Date</th></tr></thead>
+                                <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-400">
+                                    <tr>
+                                        <th class="px-6 py-6 whitespace-nowrap">Status</th>
+                                        <th class="px-6 py-6 whitespace-nowrap">Label</th>
+                                        <th class="px-6 py-6 whitespace-nowrap">Category</th>
+                                        <th class="px-6 py-6 whitespace-nowrap">Amount</th>
+                                        <th class="px-6 py-6 whitespace-nowrap">Date</th>
+                                    </tr>
+                                </thead>
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                    ${all.map(t => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors"><td class="px-6 py-6"><span class="px-3 py-1 rounded-lg text-[9px] font-black uppercase whitespace-nowrap ${t.type==='in'?'bg-emerald-100 text-emerald-600':'bg-rose-100 text-rose-600'}">${t.type==='in'?'Inflow':'Outflow'}</span></td><td class="px-6 py-6 text-sm font-bold whitespace-nowrap">${t.label}</td><td class="px-6 py-6 text-xs text-slate-500 whitespace-nowrap">${t.Category}</td><td class="px-6 py-6 font-black text-sm whitespace-nowrap ${t.type==='in'?'text-emerald-600':'text-rose-600'}">${t.type==='in'?'+':'-'}${parseFloat(t.Amount).toLocaleString()}</td><td class="px-6 py-6 text-xs text-slate-400 whitespace-nowrap">${t.Date}</td></tr>`).join('')}
+                                    ${all.map(t => `
+                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                                            <td class="px-6 py-6">
+                                                <span class="px-3 py-1 rounded-lg text-[9px] font-black uppercase whitespace-nowrap ${t.type==='in'?'bg-emerald-100 text-emerald-600':'bg-rose-100 text-rose-600'}">
+                                                    ${t.type==='in'?'Inflow':'Outflow'}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-6 text-sm font-bold whitespace-nowrap">${t.label}</td>
+                                            <td class="px-6 py-6 text-xs text-slate-500 whitespace-nowrap">${t.Category || '-'}</td>
+                                            <td class="px-6 py-6 font-black text-sm whitespace-nowrap ${t.type==='in'?'text-emerald-600':'text-rose-600'}">
+                                                ${t.type==='in'?'+':'-'}${parseFloat(t.Amount).toLocaleString()}
+                                            </td>
+                                            <td class="px-6 py-6 text-xs text-slate-400 whitespace-nowrap">${t.Date}</td>
+                                        </tr>`).join('')}
                                 </tbody>
                             </table>
                         </div>
@@ -623,7 +681,7 @@
                 state.isModalOpen = false;
             } catch (err) { console.error("Save error:", err); pushNotify("Error: " + err.message); }
             state.loading = false; render();
-        }
+        };
 
         function render() {
             const root = document.getElementById('app');
@@ -631,7 +689,7 @@
         }
 
         window.initMockData = () => {
-            if (state.data.students.length > 0) return; // Prevent double mock data
+            if (state.data.students.length > 0) return;
             const studentNames = ["Ahmed Mohamed", "Sara Khalid"];
             studentNames.forEach((name, i) => {
                 const id = 'STU-' + (1001 + i);
@@ -642,10 +700,8 @@
             state.data.subjects.push({ 'Grade': '1st Grade', 'Subject Name': 'Mathematics', 'Teacher Name': 'Mr. Ahmed Khalil', 'Day': todayName, 'Room': 'Room 101', 'Start Time': '08:00 AM' });
             state.data.subjects.push({ 'Grade': '2nd Grade', 'Subject Name': 'English Language', 'Teacher Name': 'Ms. Sara Smith', 'Day': todayName, 'Room': 'Room 102', 'Start Time': '10:30 AM' });
             state.data.expenses.push({ 'Expense ID': 'EXP-101', 'Title': 'Rent', 'Category': 'Operations', 'Subcategory': 'Rent', 'Amount': 5000, 'Date': '2024-02-01' });
-        }
+        };
 
-        // --- Execute Initialization ---
-        // Modules execute after the DOM is ready, so we can call functions directly
         window.initMockData();
         window.initAuth();
         render();

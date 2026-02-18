@@ -92,7 +92,9 @@
                 filterAll: "All Grades",
                 addTeacher: "Add Teacher",
                 addCategory: "Add Category",
-                addSub: "Add Sub"
+                addSub: "Add Sub",
+                todaySchedule: "Today's Schedule",
+                noLectures: "No lectures scheduled for today."
             },
             ar: {
                 dashboard: "نظرة عامة",
@@ -112,7 +114,9 @@
                 filterAll: "كل المستويات",
                 addTeacher: "إضافة معلم",
                 addCategory: "إضافة تصنيف",
-                addSub: "إضافة فرعي"
+                addSub: "إضافة فرعي",
+                todaySchedule: "محاضرات اليوم",
+                noLectures: "لا توجد محاضرات مجدولة لليوم."
             }
         };
 
@@ -230,10 +234,23 @@
                     'Amount': (3000 + (i * 500)), 'Date': '2024-02-15'
                 });
             });
+
+            // Make sure one subject is for "Today" (dynamically based on real world)
+            const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+
             state.data.subjects.push({
                 'Grade': '1st Grade', 'Subject Name': 'Mathematics', 'Teacher Name': 'Mr. Ahmed Khalil',
-                'Day': 'Monday', 'Room': 'Room 101', 'Start Time': '08:00 AM'
+                'Day': todayName, 'Room': 'Room 101', 'Start Time': '08:00 AM'
             });
+            state.data.subjects.push({
+                'Grade': '2nd Grade', 'Subject Name': 'English Language', 'Teacher Name': 'Ms. Sara Smith',
+                'Day': todayName, 'Room': 'Room 102', 'Start Time': '10:30 AM'
+            });
+            state.data.subjects.push({
+                'Grade': '3rd Grade', 'Subject Name': 'Science', 'Teacher Name': 'Mr. Ahmed Khalil',
+                'Day': 'Friday', 'Room': 'Lab A', 'Start Time': '09:00 AM'
+            });
+
             state.data.expenses.push({
                 'Expense ID': 'EXP-101', 'Title': 'Rent', 'Category': 'Operations', 'Subcategory': 'Rent',
                 'Amount': 5000, 'Date': '2024-02-01'
@@ -383,8 +400,12 @@
 
         function renderDashboard() {
             const stats = getTotals();
+            const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+            const todayLectures = state.data.subjects.filter(s => s.Day === todayName);
+
             return `
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                <!-- Numerical Widgets -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
                         <h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Total Students</h3>
                         <p class="text-3xl font-black text-mantiq-navy dark:text-white tracking-tighter">${state.data.students.length}</p>
@@ -402,6 +423,45 @@
                         <p class="text-3xl font-black text-mantiq-cyan tracking-tighter">${stats.net.toLocaleString()}</p>
                     </div>
                 </div>
+
+                <!-- TODAY'S LECTURES SECTION -->
+                <div class="mb-12">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-black text-mantiq-navy dark:text-white uppercase tracking-tight flex items-center gap-2">
+                            <i data-lucide="calendar" class="text-mantiq-cyan"></i> ${ut('todaySchedule')}
+                        </h3>
+                        <span class="text-[10px] font-black text-slate-400 uppercase bg-slate-100 dark:bg-slate-800 px-4 py-1 rounded-full">${todayName}</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${todayLectures.length ? todayLectures.map(lec => `
+                            <div class="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="p-2 bg-mantiq-cyan/10 text-mantiq-cyan rounded-xl">
+                                        <i data-lucide="book-open" size="20"></i>
+                                    </div>
+                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${lec.Room}</span>
+                                </div>
+                                <div class="mb-6">
+                                    <h4 class="text-lg font-black text-mantiq-navy dark:text-white">${lec['Subject Name']}</h4>
+                                    <p class="text-xs font-bold text-slate-500">${lec['Teacher Name']}</p>
+                                </div>
+                                <div class="flex items-center justify-between border-t border-slate-50 dark:border-slate-800 pt-4">
+                                    <div class="flex items-center gap-2 text-mantiq-cyan">
+                                        <i data-lucide="clock" size="14"></i>
+                                        <span class="text-xs font-black">${lec['Start Time']}</span>
+                                    </div>
+                                    <span class="text-[9px] font-black px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 uppercase">${lec.Grade}</span>
+                                </div>
+                            </div>
+                        `).join('') : `
+                            <div class="col-span-full py-12 text-center bg-slate-100/50 dark:bg-slate-800/20 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
+                                <p class="text-slate-400 font-bold uppercase tracking-widest text-sm">${ut('noLectures')}</p>
+                            </div>
+                        `}
+                    </div>
+                </div>
+
+                <!-- Hero Section -->
                 <div class="bg-white dark:bg-slate-900 rounded-[3.5rem] p-16 border border-slate-200 dark:border-slate-800 text-center relative overflow-hidden flex flex-col items-center justify-center">
                     <div class="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><i data-lucide="graduation-cap" size="240"></i></div>
                     <h2 class="text-4xl font-black text-mantiq-navy dark:text-white mb-4 uppercase tracking-tighter">Academic Control Center</h2>
@@ -417,7 +477,6 @@
                 ...state.data.expenses.map(x => ({ ...x, type: 'out', label: x['Title'] }))
             ].sort((a,b) => new Date(b.Date) - new Date(a.Date));
 
-            // Apply Search Filtering for Cash Flow
             if (state.searchQuery) {
                 const q = state.searchQuery.toLowerCase();
                 all = all.filter(item => 
@@ -483,7 +542,6 @@
             const nav = ACADEMY_NAV.find(n => n.id === state.page);
             let rawData = state.data[state.page] || [];
 
-            // Apply Filters
             if (state.searchQuery) {
                 const q = state.searchQuery.toLowerCase();
                 rawData = rawData.filter(row => 
@@ -603,12 +661,10 @@
             `;
         }
 
-        // --- Flexible Config Page Rendering ---
         function renderConfig() {
             return `
                 <div class="fade-in space-y-10 pb-20">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <!-- Teachers Manager -->
                         <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
                             <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="user-plus" class="text-mantiq-cyan"></i> Teachers</h3>
                             <div class="flex gap-2 mb-6">
@@ -625,11 +681,9 @@
                             </div>
                         </div>
 
-                        <!-- Categories Manager -->
                         <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm space-y-10">
                              <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="layers" class="text-mantiq-cyan"></i> Categories Management</h3>
                              
-                             <!-- Income Categories -->
                              <div class="space-y-4">
                                  <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-l-2 border-emerald-500 pl-2">Income Structure</p>
                                  <div class="flex gap-2">
@@ -659,7 +713,6 @@
                                  </div>
                              </div>
 
-                             <!-- Expense Categories -->
                              <div class="space-y-4">
                                  <p class="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-2 border-rose-500 pl-2">Expense Structure</p>
                                  <div class="flex gap-2">
@@ -759,13 +812,8 @@
 
             state.loading = true; render();
             try {
-                // If you use Supabase, uncomment below
-                // await db.insert(state.page, record);
-                
-                // Local mock insertion
                 if (!state.data[state.page]) state.data[state.page] = [];
                 state.data[state.page] = [record, ...state.data[state.page]];
-
                 pushNotify("Entry Saved Successfully");
                 state.isModalOpen = false;
             } catch (err) { pushNotify("Error: " + err.message); }

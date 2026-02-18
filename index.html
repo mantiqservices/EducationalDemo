@@ -6,8 +6,27 @@
     <title>MANTIQ | Academy Management System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Supabase CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Configuration & Initialization ---
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Global instances for the app logic
+        window.mantiqDb = db;
+        window.mantiqAuth = auth;
+        window.mantiqAppId = appId;
+        window.mantiqFirestore = { doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, query };
+    </script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&display=swap');
         
@@ -67,71 +86,33 @@
     <div id="app" class="min-h-screen"></div>
     <div id="notification-container" class="fixed bottom-10 right-10 z-[110] space-y-3"></div>
 
-    <script>
-        // --- 1. Supabase Configuration ---
-        const SUPABASE_URL = ''; 
-        const SUPABASE_ANON_KEY = ''; 
-        
-        let supabaseClient = null;
-        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        }
+    <script type="module">
+        import { signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { collection, onSnapshot, doc, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- 2. Constants & UI ---
+        // --- Constants & UI ---
         const UI = {
             en: {
-                dashboard: "Academy Overview",
-                volume: "Total Revenue",
-                assets: "Students",
-                addRecord: "Add Entry",
-                cancel: "Cancel",
-                role: "Super Administrator",
-                submit: "Save & Sync",
-                studentProfile: "Student Summary",
-                backToList: "Back to List",
-                netCash: "Net Cash Flow",
-                inflow: "Total Inflow",
-                outflow: "Total Outflow",
-                restricted: "Action Restricted.",
-                searchPlaceholder: "Search records...",
-                filterAll: "All Grades",
-                addTeacher: "Add Teacher",
-                addCategory: "Add Category",
-                addSub: "Add Sub",
-                addGrade: "Add Grade",
-                gradeName: "Grade Name",
-                gradeFee: "Base Fee",
-                todaySchedule: "Today's Schedule",
-                noLectures: "No lectures scheduled for today.",
-                empty: "No records found.",
-                action: "Action"
+                dashboard: "Academy Overview", volume: "Total Revenue", assets: "Students",
+                addRecord: "Add Entry", cancel: "Cancel", role: "Super Administrator",
+                submit: "Save & Sync", studentProfile: "Student Summary", backToList: "Back to List",
+                netCash: "Net Cash Flow", inflow: "Total Inflow", outflow: "Total Outflow",
+                restricted: "Action Restricted.", searchPlaceholder: "Search records...",
+                filterAll: "All Grades", addTeacher: "Add Teacher", addCategory: "Add Category",
+                addSub: "Add Sub", addGrade: "Add Grade", gradeName: "Grade Name",
+                gradeFee: "Base Fee", todaySchedule: "Today's Schedule",
+                noLectures: "No lectures scheduled for today.", empty: "No records found.", action: "Action"
             },
             ar: {
-                dashboard: "نظرة عامة",
-                volume: "إجمالي الإيرادات",
-                assets: "عدد الطلاب",
-                addRecord: "إضافة سجل",
-                cancel: "إلغاء",
-                role: "مدير النظام",
-                submit: "حفظ ومزامنة",
-                studentProfile: "ملخص الطالب",
-                backToList: "العودة للقائمة",
-                netCash: "صافي الربح",
-                inflow: "إجمالي الوارد",
-                outflow: "إجمالي الصادر",
-                restricted: "إجراء مقيد.",
-                searchPlaceholder: "بحث في السجلات...",
-                filterAll: "كل المستويات",
-                addTeacher: "إضافة معلم",
-                addCategory: "إضافة تصنيف",
-                addSub: "إضافة فرعي",
-                addGrade: "إضافة مستوى",
-                gradeName: "اسم المستوى",
-                gradeFee: "الرسوم الأساسية",
-                todaySchedule: "محاضرات اليوم",
-                noLectures: "لا توجد محاضرات مجدولة لليوم.",
-                empty: "لا توجد سجلات حالية.",
-                action: "إجراء"
+                dashboard: "نظرة عامة", volume: "إجمالي الإيرادات", assets: "عدد الطلاب",
+                addRecord: "إضافة سجل", cancel: "إلغاء", role: "مدير النظام",
+                submit: "حفظ ومزامنة", studentProfile: "ملخص الطالب", backToList: "العودة للقائمة",
+                netCash: "صافي الربح", inflow: "إجمالي الوارد", outflow: "إجمالي الصادر",
+                restricted: "إجراء مقيد.", searchPlaceholder: "بحث في السجلات...",
+                filterAll: "كل المستويات", addTeacher: "إضافة معلم", addCategory: "إضافة تصنيف",
+                addSub: "إضافة فرعي", addGrade: "إضافة مستوى", gradeName: "اسم المستوى",
+                gradeFee: "الرسوم الأساسية", todaySchedule: "محاضرات اليوم",
+                noLectures: "لا توجد محاضرات مجدولة لليوم.", empty: "لا توجد سجلات حالية.", action: "إجراء"
             }
         };
 
@@ -145,17 +126,18 @@
             { id: 'config', label: { en: 'Settings', ar: 'الإعدادات' }, icon: 'settings-2', tableCols: { en: ['Entity', 'Detail', 'Value'], ar: ['الكيان', 'التفاصيل', 'القيمة'] } }
         ];
 
-        // --- 3. State Management ---
+        // --- State Management ---
         let state = {
             page: 'dashboard',
             darkMode: false,
-            language: 'en', // Changed default to English
+            language: 'en',
             isModalOpen: false,
             isSidebarOpen: false,
             loading: false,
             viewingStudentId: null,
             searchQuery: '',
             gradeFilter: 'All',
+            user: null,
             data: {
                 students: [],
                 income: [],
@@ -183,22 +165,68 @@
         const _t = (en, ar) => state.language === 'en' ? en : ar;
         const ut = (key) => UI[state.language][key];
 
-        // --- 4. Logic & Handlers ---
-        function generateID(prefix = 'STU-') {
-            return prefix + Math.floor(1000 + Math.random() * 9000);
+        // --- Firebase Integration Logic ---
+        
+        window.initAuth = async () => {
+            const auth = window.mantiqAuth;
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                state.user = user;
+                if (user) {
+                    setupListeners();
+                }
+                render();
+            });
+        };
+
+        function setupListeners() {
+            const db = window.mantiqDb;
+            const appId = window.mantiqAppId;
+
+            // Helper to sync collections
+            const syncCollection = (collName) => {
+                const q = collection(db, 'artifacts', appId, 'public', 'data', collName);
+                onSnapshot(q, (snapshot) => {
+                    state.data[collName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    render();
+                }, (err) => console.error(`Error syncing ${collName}:`, err));
+            };
+
+            ['students', 'income', 'expenses', 'subjects'].forEach(syncCollection);
+
+            // Sync Settings/Config
+            const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+            onSnapshot(configDoc, (docSnap) => {
+                if (docSnap.exists()) {
+                    state.data.config = docSnap.data();
+                } else {
+                    // Initialize if empty
+                    setDoc(configDoc, state.data.config);
+                }
+                render();
+            }, (err) => console.error("Error syncing config:", err));
         }
 
-        function initMockData() {
-            const studentNames = ["Ahmed Mohamed", "Sara Khalid"];
-            studentNames.forEach((name, i) => {
-                const id = 'STU-' + (1001 + i);
-                state.data.students.push({ 'Stu-ID': id, 'Student Name': name, 'Age': 6 + i, 'Phone': "0102345678" + i, 'Email': name.toLowerCase().replace(' ', '') + "@academy.com", 'Grade': '1st Grade' });
-                state.data.income.push({ 'Stu-ID': id, 'Student Name': name, 'Category': 'Tuition', 'Subcategory': 'Base Fee', 'Amount': (3000 + (i * 500)), 'Date': '2024-02-15' });
-            });
-            const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-            state.data.subjects.push({ 'Grade': '1st Grade', 'Subject Name': 'Mathematics', 'Teacher Name': 'Mr. Ahmed Khalil', 'Day': todayName, 'Room': 'Room 101', 'Start Time': '08:00 AM' });
-            state.data.subjects.push({ 'Grade': '2nd Grade', 'Subject Name': 'English Language', 'Teacher Name': 'Ms. Sara Smith', 'Day': todayName, 'Room': 'Room 102', 'Start Time': '10:30 AM' });
-            state.data.expenses.push({ 'Expense ID': 'EXP-101', 'Title': 'Rent', 'Category': 'Operations', 'Subcategory': 'Rent', 'Amount': 5000, 'Date': '2024-02-01' });
+        async function updateFirebaseConfig() {
+            if (!state.user) return;
+            const db = window.mantiqDb;
+            const appId = window.mantiqAppId;
+            const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+            await setDoc(configDoc, state.data.config);
+        }
+
+        // --- Business Logic ---
+        function generateID(prefix = 'STU-') {
+            return prefix + Math.floor(1000 + Math.random() * 9000);
         }
 
         function getTotals() {
@@ -222,18 +250,25 @@
             }
         };
 
-        // --- Config Actions ---
-        function addTeacher() {
+        // --- Action Handlers (Firebase Connected) ---
+        window.addTeacher = async () => {
             const input = document.getElementById('config-teacher-input');
             const name = input.value.trim();
-            if (name) { state.data.config.teachers.push(name); input.value = ''; render(); pushNotify("Teacher added."); }
+            if (name) {
+                state.data.config.teachers.push(name);
+                input.value = '';
+                await updateFirebaseConfig();
+                pushNotify("Teacher added.");
+            }
         }
 
-        function deleteTeacher(index) {
-            state.data.config.teachers.splice(index, 1); render(); pushNotify("Teacher removed.");
+        window.deleteTeacher = async (index) => {
+            state.data.config.teachers.splice(index, 1);
+            await updateFirebaseConfig();
+            pushNotify("Teacher removed.");
         }
 
-        function addGrade() {
+        window.addGrade = async () => {
             const nameInput = document.getElementById('config-grade-name-input');
             const feeInput = document.getElementById('config-grade-fee-input');
             const name = nameInput.value.trim();
@@ -242,46 +277,52 @@
                 state.data.config.gradeFees[name] = fee;
                 nameInput.value = '';
                 feeInput.value = '';
-                render();
+                await updateFirebaseConfig();
                 pushNotify("Grade level added.");
             }
         }
 
-        function deleteGrade(grade) {
+        window.deleteGrade = async (grade) => {
             delete state.data.config.gradeFees[grade];
-            render();
+            await updateFirebaseConfig();
             pushNotify("Grade level removed.");
         }
 
-        function addCategory(type) {
+        window.addCategory = async (type) => {
             const input = document.getElementById(`config-${type}-cat-input`);
             const name = input.value.trim();
             if (name) {
                 const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-                list.push({ name, subs: [] }); input.value = ''; render();
+                list.push({ name, subs: [] });
+                input.value = '';
+                await updateFirebaseConfig();
             }
         }
 
-        function deleteCategory(type, index) {
+        window.deleteCategory = async (type, index) => {
             const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-            list.splice(index, 1); render();
+            list.splice(index, 1);
+            await updateFirebaseConfig();
         }
 
-        function addSub(type, catIdx) {
+        window.addSub = async (type, catIdx) => {
             const input = document.getElementById(`config-${type}-sub-input-${catIdx}`);
             const name = input.value.trim();
             if (name) {
                 const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-                list[catIdx].subs.push(name); input.value = ''; render();
+                list[catIdx].subs.push(name);
+                input.value = '';
+                await updateFirebaseConfig();
             }
         }
 
-        function deleteSub(type, catIdx, subIdx) {
+        window.deleteSub = async (type, catIdx, subIdx) => {
             const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-            list[catIdx].subs.splice(subIdx, 1); render();
+            list[catIdx].subs.splice(subIdx, 1);
+            await updateFirebaseConfig();
         }
 
-        async function setPage(p) {
+        window.setPage = (p) => {
             state.page = p; state.viewingStudentId = null; state.searchQuery = ''; state.gradeFilter = 'All'; state.isSidebarOpen = false; render();
         }
 
@@ -294,7 +335,7 @@
             setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
         }
 
-        // --- 5. Rendering Components ---
+        // --- Rendering Components ---
 
         function renderStudentSummary(id) {
             const student = state.data.students.find(s => s['Stu-ID'] === id);
@@ -305,7 +346,7 @@
             return `
                 <div class="fade-in space-y-8">
                     <div class="flex items-center justify-between">
-                        <button onclick="state.viewingStudentId=null; render();" class="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase hover:text-mantiq-cyan transition-colors">
+                        <button onclick="window.setViewingStudent(null)" class="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase hover:text-mantiq-cyan transition-colors">
                             <i data-lucide="arrow-left" size="16" class="${state.language === 'ar' ? 'rotate-180' : ''}"></i> ${ut('backToList')}
                         </button>
                         <h2 class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('studentProfile')}</h2>
@@ -316,7 +357,7 @@
                             <h3 class="text-lg lg:text-xl font-black text-mantiq-navy dark:text-white mb-1 uppercase text-center">${student['Student Name']}</h3>
                             <p class="text-[10px] font-black text-mantiq-cyan tracking-widest mb-10">${student['Stu-ID']}</p>
                             <div class="w-full space-y-4 pt-8 border-t border-slate-100 dark:border-slate-800">
-                                ${Object.entries(student).map(([k,v]) => `<div class="flex justify-between items-center"><span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${k}</span><span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-right ml-2">${v}</span></div>`).join('')}
+                                ${Object.entries(student).filter(([k]) => k !== 'id').map(([k,v]) => `<div class="flex justify-between items-center"><span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${k}</span><span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-right ml-2">${v}</span></div>`).join('')}
                             </div>
                         </div>
                         <div class="lg:col-span-2 space-y-6">
@@ -336,6 +377,13 @@
                 </div>
             `;
         }
+
+        window.setViewingStudent = (id) => { state.viewingStudentId = id; render(); };
+        window.closeModal = () => { state.isModalOpen = false; render(); };
+        window.openModal = () => { state.isModalOpen = true; render(); };
+        window.toggleSidebar = () => { state.isSidebarOpen = !state.isSidebarOpen; render(); };
+        window.toggleDarkMode = () => { state.darkMode = !state.darkMode; document.documentElement.classList.toggle('dark'); render(); };
+        window.toggleLanguage = () => { state.language = state.language === 'en' ? 'ar' : 'en'; document.body.dir = state.language === 'ar' ? 'rtl' : 'ltr'; render(); };
 
         function renderDashboard() {
             const stats = getTotals();
@@ -394,6 +442,9 @@
             `;
         }
 
+        window.handleSearch = (val) => { state.searchQuery = val; render(); };
+        window.handleGradeFilter = (val) => { state.gradeFilter = val; render(); };
+
         function renderTable() {
             const nav = ACADEMY_NAV.find(n => n.id === state.page);
             let rawData = state.data[state.page] || [];
@@ -403,18 +454,18 @@
             return `
                 <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-6 mb-10">
                     <div><h2 class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${_t(nav.label.en, nav.label.ar)}</h2><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">${rawData.length} Results Found</p></div>
-                    <button onclick="state.isModalOpen=true; render();" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy px-6 py-4 rounded-xl font-black text-[10px] uppercase shadow-xl hover:scale-105 transition-transform w-full lg:w-auto">${ut('addRecord')}</button>
+                    <button onclick="window.openModal()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy px-6 py-4 rounded-xl font-black text-[10px] uppercase shadow-xl hover:scale-105 transition-transform w-full lg:w-auto">${ut('addRecord')}</button>
                 </div>
                 <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-none p-4 lg:p-6 shadow-sm dark:shadow-2xl mb-8 flex flex-col sm:flex-row gap-4 items-center">
-                    <div class="w-full flex-1 relative"><i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i><input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="state.searchQuery = this.value; render();" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-mantiq-cyan border-none" /></div>
-                    ${['students', 'subjects', 'income'].includes(state.page) ? `<div class="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl"><span class="text-[10px] font-black uppercase text-slate-400">${_t('Grade', 'المستوى')}</span><select onchange="state.gradeFilter = this.value; render();" class="bg-transparent border-none text-xs font-bold outline-none focus:ring-0"><option value="All">${ut('filterAll')}</option>${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}" ${state.gradeFilter === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div>` : ''}
+                    <div class="w-full flex-1 relative"><i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i><input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="window.handleSearch(this.value)" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-mantiq-cyan border-none" /></div>
+                    ${['students', 'subjects', 'income'].includes(state.page) ? `<div class="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl"><span class="text-[10px] font-black uppercase text-slate-400">${_t('Grade', 'المستوى')}</span><select onchange="window.handleGradeFilter(this.value)" class="bg-transparent border-none text-xs font-bold outline-none focus:ring-0"><option value="All">${ut('filterAll')}</option>${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}" ${state.gradeFilter === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div>` : ''}
                 </div>
                 <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-none overflow-hidden shadow-sm dark:shadow-2xl">
                     <div class="overflow-x-auto custom-scrollbar">
                         <table class="w-full text-left border-collapse" dir="${state.language==='ar'?'rtl':'ltr'}">
                             <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase tracking-widest font-black text-slate-400"><tr>${nav.tableCols.en.map((c, i) => `<th class="px-6 py-6 whitespace-nowrap">${_t(c, nav.tableCols.ar[i])}</th>`).join('')}<th class="px-6 py-6 text-center whitespace-nowrap">${ut('action')}</th></tr></thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                ${rawData.length ? rawData.map(row => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">${nav.tableCols.en.map(k => `<td class="px-6 py-5 font-bold text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">${row[k] || '-'}</td>`).join('')}<td class="px-6 py-5 text-center flex justify-center gap-2">${state.page === 'students' ? `<button onclick="state.viewingStudentId='${row['Stu-ID']}'; render();" class="p-2 text-mantiq-cyan hover:bg-mantiq-cyan/10 rounded-xl transition-all"><i data-lucide="user" size="18"></i></button>` : ''}<button onclick="pushNotify('${ut('restricted')}')" class="p-2 text-slate-300 hover:text-rose-500 transition-all"><i data-lucide="trash-2" size="18"></i></button></td></tr>`).join('') : `<tr><td colspan="10" class="p-20 text-center italic text-slate-400 font-bold uppercase tracking-widest">${ut('empty')}</td></tr>`}
+                                ${rawData.length ? rawData.map(row => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">${nav.tableCols.en.map(k => `<td class="px-6 py-5 font-bold text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">${row[k] || '-'}</td>`).join('')}<td class="px-6 py-5 text-center flex justify-center gap-2">${state.page === 'students' ? `<button onclick="window.setViewingStudent('${row['Stu-ID']}')" class="p-2 text-mantiq-cyan hover:bg-mantiq-cyan/10 rounded-xl transition-all"><i data-lucide="user" size="18"></i></button>` : ''}<button onclick="window.deleteEntry('${row.id}')" class="p-2 text-slate-300 hover:text-rose-500 transition-all"><i data-lucide="trash-2" size="18"></i></button></td></tr>`).join('') : `<tr><td colspan="10" class="p-20 text-center italic text-slate-400 font-bold uppercase tracking-widest">${ut('empty')}</td></tr>`}
                             </tbody>
                         </table>
                     </div>
@@ -422,35 +473,37 @@
             `;
         }
 
+        window.deleteEntry = async (id) => {
+            if (!state.user) return;
+            const db = window.mantiqDb;
+            const appId = window.mantiqAppId;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.page, id));
+                pushNotify("Entry deleted.");
+            } catch (err) {
+                console.error("Delete error:", err);
+                pushNotify("Error deleting entry.");
+            }
+        };
+
         function renderApp() {
-            const navItems = ACADEMY_NAV.map(item => `<button onclick="setPage('${item.id}')" class="w-full flex items-center gap-4 px-6 py-4 rounded-xl lg:rounded-2xl text-sm font-bold transition-all ${state.page === item.id ? 'bg-mantiq-cyan text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}"><i data-lucide="${item.icon}" size="18"></i><span class="truncate">${_t(item.label.en, item.label.ar)}</span></button>`).join('');
+            const navItems = ACADEMY_NAV.map(item => `<button onclick="window.setPage('${item.id}')" class="w-full flex items-center gap-4 px-6 py-4 rounded-xl lg:rounded-2xl text-sm font-bold transition-all ${state.page === item.id ? 'bg-mantiq-cyan text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}"><i data-lucide="${item.icon}" size="18"></i><span class="truncate">${_t(item.label.en, item.label.ar)}</span></button>`).join('');
             const currentNav = ACADEMY_NAV.find(n => n.id === state.page);
 
             return `
                 <div class="flex h-screen overflow-hidden">
-                    <div id="mobile-sidebar-overlay" onclick="state.isSidebarOpen = false; render();" class="fixed inset-0 z-40 sidebar-overlay transition-opacity lg:hidden ${state.isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}"></div>
+                    <div id="mobile-sidebar-overlay" onclick="window.toggleSidebar()" class="fixed inset-0 z-40 sidebar-overlay transition-opacity lg:hidden ${state.isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}"></div>
                     <aside class="fixed lg:static w-72 flex flex-col h-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 z-50 transition-transform duration-300 lg:translate-x-0 ${state.language === 'en' ? 'left-0 border-r -translate-x-full' : 'right-0 border-l translate-x-full'} ${state.isSidebarOpen ? 'translate-x-0' : ''}">
-                        <div class="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center"><div class="flex items-center gap-2"><div class="p-1.5 bg-mantiq-cyan rounded-xl"><i data-lucide="graduation-cap" class="text-white w-5 h-5"></i></div><span class="text-xl font-black tracking-tighter text-mantiq-navy dark:text-white uppercase">MANTIQ</span></div><button onclick="state.isSidebarOpen = false; render();" class="lg:hidden text-slate-400"><i data-lucide="x" size="24"></i></button></div>
+                        <div class="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center"><div class="flex items-center gap-2"><div class="p-1.5 bg-mantiq-cyan rounded-xl"><i data-lucide="graduation-cap" class="text-white w-5 h-5"></i></div><span class="text-xl font-black tracking-tighter text-mantiq-navy dark:text-white uppercase">MANTIQ</span></div><button onclick="window.toggleSidebar()" class="lg:hidden text-slate-400"><i data-lucide="x" size="24"></i></button></div>
                         <nav class="flex-1 p-6 space-y-1 overflow-y-auto custom-scrollbar">${navItems}</nav>
                         <div class="p-6 border-t border-slate-100 dark:border-slate-800"><div class="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl"><div class="w-10 h-10 rounded-xl bg-mantiq-navy text-white flex items-center justify-center font-black text-xs">SA</div><div class="flex-1 min-w-0"><p class="text-xs font-black truncate">Admin Portal</p><p class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">${ut('role')}</p></div></div></div>
                     </aside>
                     <div class="flex-1 h-screen overflow-y-auto custom-scrollbar relative">
                         <header class="h-20 lg:h-24 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10">
-                            <div class="flex items-center gap-4">
-                                <button onclick="state.isSidebarOpen = true; render();" class="lg:hidden p-2 text-mantiq-navy dark:text-white"><i data-lucide="menu" size="24"></i></button>
-                                <h2 class="text-lg lg:text-2xl font-black tracking-tight text-mantiq-navy dark:text-white uppercase truncate">
-                                    ${state.viewingStudentId ? ut('studentProfile') : _t(currentNav.label.en, currentNav.label.ar)}
-                                </h2>
-                            </div>
-                            <div class="flex items-center gap-2 lg:gap-4">
-                                <button onclick="state.language = state.language === 'en' ? 'ar' : 'en'; document.body.dir=state.language==='ar'?'rtl':'ltr'; render();" class="text-[8px] lg:text-[10px] font-black uppercase px-3 lg:px-4 py-2 border rounded-xl border-slate-200 dark:border-slate-800 whitespace-nowrap">${state.language === 'en' ? 'Arabic' : 'English'}</button>
-                                <button onclick="state.darkMode=!state.darkMode; document.documentElement.classList.toggle('dark'); render();" class="p-2.5 lg:p-3 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-800"><i data-lucide="${state.darkMode ? 'sun' : 'moon'}" size="16"></i></button>
-                            </div>
+                            <div class="flex items-center gap-4"><button onclick="window.toggleSidebar()" class="lg:hidden p-2 text-mantiq-navy dark:text-white"><i data-lucide="menu" size="24"></i></button><h2 class="text-lg lg:text-2xl font-black tracking-tight text-mantiq-navy dark:text-white uppercase truncate">${state.viewingStudentId ? ut('studentProfile') : _t(currentNav.label.en, currentNav.label.ar)}</h2></div>
+                            <div class="flex items-center gap-2 lg:gap-4"><button onclick="window.toggleLanguage()" class="text-[8px] lg:text-[10px] font-black uppercase px-3 lg:px-4 py-2 border rounded-xl border-slate-200 dark:border-slate-800 whitespace-nowrap">${state.language === 'en' ? 'Arabic' : 'English'}</button><button onclick="window.toggleDarkMode()" class="p-2.5 lg:p-3 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-800"><i data-lucide="${state.darkMode ? 'sun' : 'moon'}" size="16"></i></button></div>
                         </header>
-
-                        <main class="p-4 lg:p-12 max-w-7xl mx-auto">
-                            ${state.viewingStudentId ? renderStudentSummary(state.viewingStudentId) : (state.page === 'dashboard' ? renderDashboard() : (state.page === 'config' ? renderConfig() : (state.page === 'cash_flow' ? renderCashFlow() : renderTable())))}
-                        </main>
+                        <main class="p-4 lg:p-12 max-w-7xl mx-auto">${state.viewingStudentId ? renderStudentSummary(state.viewingStudentId) : (state.page === 'dashboard' ? renderDashboard() : (state.page === 'config' ? renderConfig() : (state.page === 'cash_flow' ? renderCashFlow() : renderTable())))}</main>
                     </div>
                 </div>
                 ${state.isModalOpen ? renderModal() : ''}
@@ -465,71 +518,46 @@
                             <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="user-plus" class="text-mantiq-cyan"></i> Teachers</h3>
                             <div class="flex gap-2 mb-6">
                                 <input id="config-teacher-input" type="text" placeholder="${ut('addTeacher')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan min-w-0" />
-                                <button onclick="addTeacher()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy p-3 rounded-xl hover:scale-105 transition-transform"><i data-lucide="plus"></i></button>
+                                <button onclick="window.addTeacher()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy p-3 rounded-xl hover:scale-105 transition-transform"><i data-lucide="plus"></i></button>
                             </div>
-                            <div class="space-y-3">
-                                ${state.data.config.teachers.map((t, idx) => `
-                                    <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800"> 
-                                        <span class="text-sm font-bold">${t}</span> 
-                                        <button onclick="deleteTeacher(${idx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="trash-2" size="16"></i></button>
-                                    </div>`).join('')}
-                            </div>
+                            <div class="space-y-3">${state.data.config.teachers.map((t, idx) => `<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800"><span class="text-sm font-bold">${t}</span><button onclick="window.deleteTeacher(${idx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
                         </div>
-
                         <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-2xl">
                             <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="graduation-cap" class="text-mantiq-cyan"></i> Grades & Fees</h3>
                             <div class="space-y-3 mb-6">
                                 <input id="config-grade-name-input" type="text" placeholder="${ut('gradeName')}..." class="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan" />
                                 <div class="flex gap-2">
                                     <input id="config-grade-fee-input" type="number" placeholder="${ut('gradeFee')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan" />
-                                    <button onclick="addGrade()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy p-3 rounded-xl hover:scale-105 transition-transform font-black text-xs uppercase px-6">${ut('addGrade')}</button>
+                                    <button onclick="window.addGrade()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy p-3 rounded-xl hover:scale-105 transition-transform font-black text-xs uppercase px-6">${ut('addGrade')}</button>
                                 </div>
                             </div>
-                            <div class="space-y-3">
-                                ${Object.entries(state.data.config.gradeFees).map(([grade, fee]) => `
-                                    <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                        <div>
-                                            <p class="text-sm font-black">${grade}</p>
-                                            <p class="text-[10px] text-mantiq-cyan font-bold uppercase tracking-widest">${fee.toLocaleString()} EGP</p>
-                                        </div>
-                                        <button onclick="deleteGrade('${grade}')" class="text-rose-400 hover:text-rose-600"><i data-lucide="trash-2" size="16"></i></button>
-                                    </div>`).join('')}
-                            </div>
+                            <div class="space-y-3">${Object.entries(state.data.config.gradeFees).map(([grade, fee]) => `<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800"><div><p class="text-sm font-black">${grade}</p><p class="text-[10px] text-mantiq-cyan font-bold uppercase tracking-widest">${fee.toLocaleString()} EGP</p></div><button onclick="window.deleteGrade('${grade}')" class="text-rose-400 hover:text-rose-600"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
                         </div>
                     </div>
-
                     <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-2xl space-y-10">
                          <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="layers" class="text-mantiq-cyan"></i> Financial Categories</h3>
                          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                              <div class="space-y-4">
                                  <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-l-2 border-emerald-500 pl-2">Income Structure</p>
-                                 <div class="flex gap-2"><input id="config-income-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold min-w-0" /><button onclick="addCategory('income')" class="bg-emerald-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button></div>
+                                 <div class="flex gap-2"><input id="config-income-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold min-w-0" /><button onclick="window.addCategory('income')" class="bg-emerald-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button></div>
                                  <div class="grid grid-cols-1 gap-4">
                                     ${state.data.config.incomeCategories.map((cat, cIdx) => `
                                          <div class="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                                             <div class="flex justify-between items-center mb-3">
-                                                 <span class="text-[10px] font-black uppercase">${cat.name}</span>
-                                                 <button onclick="deleteCategory('income', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button>
-                                             </div>
-                                             <div class="flex flex-wrap gap-2 mb-3">
-                                                 ${cat.subs.map((s, sIdx) => `<span class="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="deleteSub('income', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}
-                                             </div>
-                                             <div class="flex gap-2"><input id="config-income-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="addSub('income', ${cIdx})" class="text-emerald-500"><i data-lucide="plus-circle" size="18"></i></button></div>
+                                             <div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="window.deleteCategory('income', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div>
+                                             <div class="flex flex-wrap gap-2 mb-3">${cat.subs.map((s, sIdx) => `<span class="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="window.deleteSub('income', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}</div>
+                                             <div class="flex gap-2"><input id="config-income-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="window.addSub('income', ${cIdx})" class="text-emerald-500"><i data-lucide="plus-circle" size="18"></i></button></div>
                                          </div>`).join('')}
                                  </div>
                              </div>
-
                              <div class="space-y-4">
                                  <p class="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-2 border-rose-500 pl-2">Expense Structure</p>
-                                 <div class="flex gap-2"><input id="config-expense-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold min-w-0" /><button onclick="addCategory('expense')" class="bg-rose-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button></div>
+                                 <div class="flex gap-2"><input id="config-expense-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold min-w-0" /><button onclick="window.addCategory('expense')" class="bg-rose-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button></div>
                                  <div class="grid grid-cols-1 gap-4">
                                      ${state.data.config.expenseCategories.map((cat, cIdx) => `
                                          <div class="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                                             <div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="deleteCategory('expense', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div>
-                                             <div class="flex flex-wrap gap-2 mb-3">
-                                                 ${cat.subs.map((s, sIdx) => `<span class="bg-rose-50 dark:bg-rose-950/20 text-rose-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="deleteSub('expense', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}
-                                             </div>
-                                             <div class="flex gap-2"><input id="config-expense-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="addSub('expense', ${cIdx})" class="text-rose-500"><i data-lucide="plus-circle" size="18"></i></button></div>
+                                             <div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="window.deleteCategory('expense', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div>
+                                             <div class="flex flex-wrap gap-2 mb-3">${cat.subs.map((s, sIdx) => `<span class="bg-rose-50 dark:bg-rose-950/20 text-rose-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="window.deleteSub('expense', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}</div>
+                                             <div class="flex gap-2"><input id="config-expense-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="window.addSub('expense', ${cIdx})" class="text-rose-500"><i data-lucide="plus-circle" size="18"></i></button></div>
                                          </div>`).join('')}
                                  </div>
                              </div>
@@ -558,11 +586,11 @@
             return `
                 <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-overlay fade-in">
                     <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2rem] p-6 lg:p-12 shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar border border-slate-100 dark:border-none dark:shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-                        <div class="flex justify-between items-start mb-6 lg:mb-10"><div><h2 class="text-xl lg:text-2xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('addRecord')}</h2></div><button onclick="state.isModalOpen=false; render();" class="text-slate-300 hover:text-rose-500"><i data-lucide="x" size="24"></i></button></div>
-                        <form id="add-record-form" onsubmit="handleAddData(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex justify-between items-start mb-6 lg:mb-10"><div><h2 class="text-xl lg:text-2xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('addRecord')}</h2></div><button onclick="window.closeModal()" class="text-slate-300 hover:text-rose-500"><i data-lucide="x" size="24"></i></button></div>
+                        <form id="add-record-form" onsubmit="window.handleAddData(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             ${fields}
                             <div class="md:col-span-2 flex flex-col sm:flex-row gap-3 mt-8">
-                                <button type="button" onclick="state.isModalOpen=false; render();" class="order-2 sm:order-1 flex-1 bg-slate-100 dark:bg-slate-800 text-slate-500 py-4 rounded-xl font-black text-xs uppercase">${ut('cancel')}</button>
+                                <button type="button" onclick="window.closeModal()" class="order-2 sm:order-1 flex-1 bg-slate-100 dark:bg-slate-800 text-slate-500 py-4 rounded-xl font-black text-xs uppercase">${ut('cancel')}</button>
                                 <button type="submit" class="order-1 sm:order-2 flex-1 bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy py-4 rounded-xl font-black text-xs uppercase shadow-xl hover:scale-[1.02] transition-transform">${ut('submit')}</button>
                             </div>
                         </form>
@@ -571,8 +599,11 @@
             `;
         }
 
-        async function handleAddData(e) {
+        window.handleAddData = async (e) => {
             e.preventDefault();
+            if (!state.user) return;
+            const db = window.mantiqDb;
+            const appId = window.mantiqAppId;
             const form = document.getElementById('add-record-form');
             const formData = new FormData(form);
             const record = {};
@@ -587,11 +618,10 @@
 
             state.loading = true; render();
             try {
-                if (!state.data[state.page]) state.data[state.page] = [];
-                state.data[state.page] = [record, ...state.data[state.page]];
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.page), record);
                 pushNotify("Entry Saved Successfully");
                 state.isModalOpen = false;
-            } catch (err) { pushNotify("Error: " + err.message); }
+            } catch (err) { console.error("Save error:", err); pushNotify("Error: " + err.message); }
             state.loading = false; render();
         }
 
@@ -600,7 +630,26 @@
             if (root) { root.innerHTML = renderApp(); lucide.createIcons(); }
         }
 
-        window.onload = () => { initMockData(); render(); };
+        window.initMockData = () => {
+            if (state.data.students.length > 0) return; // Prevent double mock data
+            const studentNames = ["Ahmed Mohamed", "Sara Khalid"];
+            studentNames.forEach((name, i) => {
+                const id = 'STU-' + (1001 + i);
+                state.data.students.push({ 'Stu-ID': id, 'Student Name': name, 'Age': 6 + i, 'Phone': "0102345678" + i, 'Email': name.toLowerCase().replace(' ', '') + "@academy.com", 'Grade': '1st Grade' });
+                state.data.income.push({ 'Stu-ID': id, 'Student Name': name, 'Category': 'Tuition', 'Subcategory': 'Base Fee', 'Amount': (3000 + (i * 500)), 'Date': '2024-02-15' });
+            });
+            const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+            state.data.subjects.push({ 'Grade': '1st Grade', 'Subject Name': 'Mathematics', 'Teacher Name': 'Mr. Ahmed Khalil', 'Day': todayName, 'Room': 'Room 101', 'Start Time': '08:00 AM' });
+            state.data.subjects.push({ 'Grade': '2nd Grade', 'Subject Name': 'English Language', 'Teacher Name': 'Ms. Sara Smith', 'Day': todayName, 'Room': 'Room 102', 'Start Time': '10:30 AM' });
+            state.data.expenses.push({ 'Expense ID': 'EXP-101', 'Title': 'Rent', 'Category': 'Operations', 'Subcategory': 'Rent', 'Amount': 5000, 'Date': '2024-02-01' });
+        }
+
+        // --- Execute Initialization ---
+        // Modules execute after the DOM is ready, so we can call functions directly
+        window.initMockData();
+        window.initAuth();
+        render();
+
     </script>
 </body>
 </html>

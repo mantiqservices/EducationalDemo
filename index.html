@@ -121,7 +121,7 @@
                 gradeFee: "Base Fee", todaySchedule: "Today's Schedule",
                 noLectures: "No lectures scheduled for today.", empty: "No records found.", action: "Action",
                 online: "Connected", offline: "Offline", exportExcel: "Excel", exportPDF: "PDF",
-                rightClickAlert: "Security Alert: restricted to be safe.",
+                rightClickAlert: "Security Alert: Right-click is restricted on this platform.",
                 searchableInfo: "Info: Type in Student Name to search and auto-fill ID."
             },
             ar: {
@@ -135,7 +135,7 @@
                 gradeFee: "الرسوم الأساسية", todaySchedule: "محاضرات اليوم",
                 noLectures: "لا توجد محاضرات مجدولة لليوم.", empty: "لا توجد سجلات حالية.", action: "إجراء",
                 online: "متصل", offline: "غير متصل", exportExcel: "اكسل", exportPDF: "PDF",
-                rightClickAlert: "تنبيه أمني:المنصة محمية .",
+                rightClickAlert: "تنبيه أمني: النقر بزر الفأرة الأيمن غير مسموح به في هذه المنصة.",
                 searchableInfo: "تنبيه: اكتب اسم الطالب للبحث وسيتم ملء الرقم تلقائياً."
             }
         };
@@ -170,19 +170,10 @@
                 subjects: [],
                 attendance: [],
                 config: {
-                    teachers: ['Mr. Ahmed Khalil', 'Ms. Sara Smith'],
-                    gradeFees: {
-                        'Kindergarten': 2500, '1st Grade': 3500, '2nd Grade': 3500,
-                        '3rd Grade': 4000, '4th Grade': 4500, '5th Grade': 5000, '6th Grade': 5500
-                    },
-                    incomeCategories: [
-                        { name: 'Tuition', subs: ['Base Fee', 'Late Fee'] },
-                        { name: 'Academics', subs: ['Books', 'Exams'] }
-                    ],
-                    expenseCategories: [
-                        { name: 'Operations', subs: ['Rent', 'Utility'] },
-                        { name: 'HR', subs: ['Salary'] }
-                    ]
+                    teachers: [],
+                    gradeFees: {},
+                    incomeCategories: [],
+                    expenseCategories: []
                 }
             }
         };
@@ -692,18 +683,7 @@
 
         function render() { const root = document.getElementById('app'); if (root) { root.innerHTML = renderApp(); lucide.createIcons(); } }
 
-        window.initMockData = () => {
-            if (state.data.students.length > 0) return;
-            const sNames = ["Ahmed Mohamed", "Sara Khalid"];
-            sNames.forEach((n, i) => {
-                const id = 'STU-' + String(i + 1).padStart(4, '0');
-                state.data.students.push({ 'Stu-ID': id, 'Student Name': n, 'Age': 6 + i, 'Phone': "0102345678" + i, 'Grade': '1st Grade' });
-            });
-            const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-            state.data.subjects.push({ 'Grade': '1st Grade', 'Subject Name': 'Mathematics', 'Teacher Name': 'Mr. Ahmed Khalil', 'Day': today, 'Room': 'Room 101', 'Start Time': '08:00 AM' });
-        };
-
-        window.initMockData(); window.initAuth(); render();
+        window.initAuth(); render();
     </script>
 </body>
 </html>

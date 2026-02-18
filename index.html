@@ -7,15 +7,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <!-- Export Libraries -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        /** * DEPLOYMENT NOTE (GitHub/Vercel):
-         * Updated with your specific Firebase project credentials.
-         */
         const externalConfig = {
             apiKey: "AIzaSyACmad2fQGzF_L1B7WXRYQGqbRx_hKQ2ns",
             authDomain: "mantiqedu.firebaseapp.com",
@@ -26,7 +28,6 @@
             measurementId: "G-BFGV0W27QJ"
         };
 
-        // --- Firebase Configuration & Initialization ---
         const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) 
             ? JSON.parse(__firebase_config) 
             : externalConfig;
@@ -34,11 +35,8 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
-        // appId is used for Firestore pathing.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'mantiq-edu-prod';
 
-        // Global instances for the app logic
         window.mantiqDb = db;
         window.mantiqAuth = auth;
         window.mantiqAppId = appId;
@@ -56,6 +54,7 @@
         body {
             font-family: 'Plus Jakarta Sans', 'Noto Sans Arabic', sans-serif;
             transition: background-color 0.3s ease;
+            user-select: none; /* Help prevent simple copy */
         }
 
         [dir="rtl"] {
@@ -96,7 +95,13 @@
                     }
                 }
             }
-        }
+        };
+
+        // Restrict Right Click
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            // Optional: You can show a custom notification here if you want
+        });
     </script>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen overflow-x-hidden" dir="ltr">
@@ -120,7 +125,7 @@
                 addSub: "Add Sub", addGrade: "Add Grade", gradeName: "Grade Name",
                 gradeFee: "Base Fee", todaySchedule: "Today's Schedule",
                 noLectures: "No lectures scheduled for today.", empty: "No records found.", action: "Action",
-                online: "Connected", offline: "Offline"
+                online: "Connected", offline: "Offline", exportExcel: "Excel", exportPDF: "PDF"
             },
             ar: {
                 dashboard: "نظرة عامة", volume: "إجمالي الإيرادات", assets: "عدد الطلاب",
@@ -132,7 +137,7 @@
                 addSub: "إضافة فرعي", addGrade: "إضافة مستوى", gradeName: "اسم المستوى",
                 gradeFee: "الرسوم الأساسية", todaySchedule: "محاضرات اليوم",
                 noLectures: "لا توجد محاضرات مجدولة لليوم.", empty: "لا توجد سجلات حالية.", action: "إجراء",
-                online: "متصل", offline: "غير متصل"
+                online: "متصل", offline: "غير متصل", exportExcel: "اكسل", exportPDF: "PDF"
             }
         };
 
@@ -198,15 +203,13 @@
                 }
             } catch (error) {
                 console.error("Auth error:", error);
-                pushNotify("Auth Error: Make sure Anonymous Auth is enabled in Firebase Console.");
+                pushNotify("Auth Error: Check Anonymous Auth settings.");
             }
 
             onAuthStateChanged(auth, (user) => {
                 state.user = user;
                 state.isConnected = !!user;
-                if (user) {
-                    setupListeners();
-                }
+                if (user) setupListeners();
                 render();
             });
         };
@@ -221,10 +224,7 @@
                     state.data[collName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     render();
                 }, (err) => {
-                    console.error(`Error syncing ${collName}:`, err);
-                    if (err.code === 'permission-denied') {
-                        pushNotify("Firestore Permission Denied. Check your Rules.");
-                    }
+                    if (err.code === 'permission-denied') pushNotify("Firestore Permission Denied.");
                 });
             };
 
@@ -232,13 +232,10 @@
 
             const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
             onSnapshot(configDoc, (docSnap) => {
-                if (docSnap.exists()) {
-                    state.data.config = docSnap.data();
-                } else {
-                    setDoc(configDoc, state.data.config);
-                }
+                if (docSnap.exists()) state.data.config = docSnap.data();
+                else setDoc(configDoc, state.data.config);
                 render();
-            }, (err) => console.error("Error syncing config:", err));
+            });
         }
 
         async function updateFirebaseConfig() {
@@ -248,6 +245,47 @@
             const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
             await setDoc(configDoc, state.data.config);
         }
+
+        // --- Export Logic ---
+        window.exportToExcel = (data, fileName) => {
+            if (!data || data.length === 0) {
+                pushNotify("No data to export");
+                return;
+            }
+            // Clean data of internal IDs
+            const cleanData = data.map(item => {
+                const { id, ...rest } = item;
+                return rest;
+            });
+            const ws = XLSX.utils.json_to_sheet(cleanData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data");
+            XLSX.writeFile(wb, `${fileName}.xlsx`);
+        };
+
+        window.exportToPDF = (data, fileName, columns) => {
+            if (!data || data.length === 0) {
+                pushNotify("No data to export");
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+            
+            doc.setFontSize(18);
+            doc.text(fileName, 14, 22);
+            
+            const tableRows = data.map(item => columns.map(col => item[col] || '-'));
+            
+            doc.autoTable({
+                head: [columns],
+                body: tableRows,
+                startY: 30,
+                theme: 'striped',
+                headStyles: { fillColor: [0, 30, 60] }
+            });
+            
+            doc.save(`${fileName}.pdf`);
+        };
 
         // --- Business Logic ---
         function generateID(prefix = 'STU-') {
@@ -454,6 +492,13 @@
             
             return `
                 <div class="fade-in space-y-8">
+                    <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-6">
+                        <div><h2 class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('netCash')}</h2></div>
+                        <div class="flex gap-2">
+                             <button onclick='window.exportToExcel(${JSON.stringify(all)}, "CashFlow")' class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200 transition-colors"><i data-lucide="file-spreadsheet" size="16"></i> ${ut('exportExcel')}</button>
+                             <button onclick='window.exportToPDF(${JSON.stringify(all)}, "CashFlow", ["type", "label", "Category", "Amount", "Date"])' class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200 transition-colors"><i data-lucide="file-text" size="16"></i> ${ut('exportPDF')}</button>
+                        </div>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                         <div class="bg-emerald-50 dark:bg-emerald-950/20 p-6 rounded-[1.5rem] border border-emerald-100 dark:border-none shadow-sm dark:shadow-xl">
                             <h4 class="text-emerald-600 text-[10px] font-black uppercase mb-1">${ut('inflow')}</h4>
@@ -521,7 +566,11 @@
             return `
                 <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-6 mb-10">
                     <div><h2 class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${_t(nav.label.en, nav.label.ar)}</h2><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">${rawData.length} Results Found</p></div>
-                    <button onclick="window.openModal()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy px-6 py-4 rounded-xl font-black text-[10px] uppercase shadow-xl hover:scale-105 transition-transform w-full lg:w-auto">${ut('addRecord')}</button>
+                    <div class="flex flex-wrap gap-2 w-full lg:w-auto">
+                        <button onclick='window.exportToExcel(${JSON.stringify(rawData)}, "${nav.id}")' class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200 transition-colors"><i data-lucide="file-spreadsheet" size="16"></i> ${ut('exportExcel')}</button>
+                        <button onclick='window.exportToPDF(${JSON.stringify(rawData)}, "${nav.id}", ${JSON.stringify(nav.tableCols.en)})' class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200 transition-colors"><i data-lucide="file-text" size="16"></i> ${ut('exportPDF')}</button>
+                        <button onclick="window.openModal()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy px-6 py-4 rounded-xl font-black text-[10px] uppercase shadow-xl hover:scale-105 transition-transform flex-1 lg:flex-none">${ut('addRecord')}</button>
+                    </div>
                 </div>
                 <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-none p-4 lg:p-6 shadow-sm dark:shadow-2xl mb-8 flex flex-col sm:flex-row gap-4 items-center">
                     <div class="w-full flex-1 relative"><i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i><input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="window.handleSearch(this.value)" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-mantiq-cyan border-none" /></div>
@@ -547,10 +596,7 @@
             try {
                 await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.page, id));
                 pushNotify("Entry deleted.");
-            } catch (err) {
-                console.error("Delete error:", err);
-                pushNotify("Error deleting entry.");
-            }
+            } catch (err) { console.error("Delete error:", err); }
         };
 
         function renderApp() {
@@ -611,35 +657,6 @@
                             <div class="space-y-3">${Object.entries(state.data.config.gradeFees).map(([grade, fee]) => `<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800"><div><p class="text-sm font-black">${grade}</p><p class="text-[10px] text-mantiq-cyan font-bold uppercase tracking-widest">${fee.toLocaleString()} EGP</p></div><button onclick="window.deleteGrade('${grade}')" class="text-rose-400 hover:text-rose-600"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
                         </div>
                     </div>
-                    <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-2xl space-y-10">
-                         <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="layers" class="text-mantiq-cyan"></i> Financial Categories</h3>
-                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                             <div class="space-y-4">
-                                 <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-l-2 border-emerald-500 pl-2">Income Structure</p>
-                                 <div class="flex gap-2"><input id="config-income-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold min-w-0" /><button onclick="window.addCategory('income')" class="bg-emerald-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button></div>
-                                 <div class="grid grid-cols-1 gap-4">
-                                    ${state.data.config.incomeCategories.map((cat, cIdx) => `
-                                         <div class="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                                             <div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="window.deleteCategory('income', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div>
-                                             <div class="flex flex-wrap gap-2 mb-3">${cat.subs.map((s, sIdx) => `<span class="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="window.deleteSub('income', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}</div>
-                                             <div class="flex gap-2"><input id="config-income-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="window.addSub('income', ${cIdx})" class="text-emerald-500"><i data-lucide="plus-circle" size="18"></i></button></div>
-                                         </div>`).join('')}
-                                 </div>
-                             </div>
-                             <div class="space-y-4">
-                                 <p class="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-2 border-rose-500 pl-2">Expense Structure</p>
-                                 <div class="flex gap-2"><input id="config-expense-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold min-w-0" /><button onclick="window.addCategory('expense')" class="bg-rose-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button></div>
-                                 <div class="grid grid-cols-1 gap-4">
-                                     ${state.data.config.expenseCategories.map((cat, cIdx) => `
-                                         <div class="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                                             <div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="window.deleteCategory('expense', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div>
-                                             <div class="flex flex-wrap gap-2 mb-3">${cat.subs.map((s, sIdx) => `<span class="bg-rose-50 dark:bg-rose-950/20 text-rose-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="window.deleteSub('expense', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}</div>
-                                             <div class="flex gap-2"><input id="config-expense-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="window.addSub('expense', ${cIdx})" class="text-rose-500"><i data-lucide="plus-circle" size="18"></i></button></div>
-                                         </div>`).join('')}
-                                 </div>
-                             </div>
-                         </div>
-                    </div>
                 </div>
             `;
         }
@@ -698,7 +715,7 @@
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.page), record);
                 pushNotify("Entry Saved Successfully");
                 state.isModalOpen = false;
-            } catch (err) { console.error("Save error:", err); pushNotify("Error: " + err.message); }
+            } catch (err) { pushNotify("Error: " + err.message); }
             state.loading = false; render();
         };
 
@@ -717,7 +734,6 @@
             });
             const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
             state.data.subjects.push({ 'Grade': '1st Grade', 'Subject Name': 'Mathematics', 'Teacher Name': 'Mr. Ahmed Khalil', 'Day': todayName, 'Room': 'Room 101', 'Start Time': '08:00 AM' });
-            state.data.subjects.push({ 'Grade': '2nd Grade', 'Subject Name': 'English Language', 'Teacher Name': 'Ms. Sara Smith', 'Day': todayName, 'Room': 'Room 102', 'Start Time': '10:30 AM' });
             state.data.expenses.push({ 'Expense ID': 'EXP-101', 'Title': 'Rent', 'Category': 'Operations', 'Subcategory': 'Rent', 'Amount': 5000, 'Date': '2024-02-01' });
         };
 

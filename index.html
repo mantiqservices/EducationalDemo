@@ -39,6 +39,11 @@
             background-color: rgba(0, 30, 60, 0.7);
             backdrop-filter: blur(8px);
         }
+
+        .sidebar-overlay {
+            background-color: rgba(0, 30, 60, 0.5);
+            backdrop-filter: blur(4px);
+        }
     </style>
     <script>
         tailwind.config = {
@@ -122,60 +127,12 @@
 
         const ACADEMY_NAV = [
             { id: 'dashboard', label: { en: 'Dashboard', ar: 'لوحة القيادة' }, icon: 'layout-dashboard' },
-            { 
-                id: 'students', 
-                label: { en: 'Students', ar: 'الطلاب' }, 
-                icon: 'users', 
-                tableCols: { 
-                    en: ['Stu-ID', 'Student Name', 'Age', 'Phone', 'Grade'], 
-                    ar: ['رقم الطالب', 'اسم الطالب', 'العمر', 'الهاتف', 'السنة الدراسية'] 
-                }
-            },
-            { 
-                id: 'subjects', 
-                label: { en: 'Subjects', ar: 'المواد والجدول' }, 
-                icon: 'calendar-clock', 
-                tableCols: { 
-                    en: ['Grade', 'Subject Name', 'Teacher Name', 'Day', 'Room', 'Start Time'], 
-                    ar: ['المستوى', 'اسم المادة', 'المعلم', 'اليوم', 'القاعة', 'وقت البدء'] 
-                }
-            },
-            { 
-                id: 'income', 
-                label: { en: 'Income', ar: 'الإيرادات' }, 
-                icon: 'trending-up', 
-                tableCols: { 
-                    en: ['Stu-ID', 'Student Name', 'Category', 'Subcategory', 'Amount', 'Date'], 
-                    ar: ['رقم الطالب', 'اسم الطالب', 'الفئة', 'الفئة الفرعية', 'المبلغ', 'التاريخ'] 
-                }
-            },
-            { 
-                id: 'expenses', 
-                label: { en: 'Expenses', ar: 'المصاريف' }, 
-                icon: 'trending-down', 
-                tableCols: { 
-                    en: ['Expense ID', 'Title', 'Category', 'Subcategory', 'Amount', 'Date'], 
-                    ar: ['المعرف', 'العنوان', 'الفئة', 'الفئة الفرعية', 'المبلغ', 'التاريخ'] 
-                }
-            },
-            { 
-                id: 'cash_flow', 
-                label: { en: 'Cash Flow', ar: 'التدفق المالي' }, 
-                icon: 'arrow-left-right', 
-                tableCols: { 
-                    en: ['Type', 'Label', 'Category', 'Amount', 'Date'], 
-                    ar: ['النوع', 'البيان', 'الفئة', 'المبلغ', 'التاريخ'] 
-                }
-            },
-            { 
-                id: 'config', 
-                label: { en: 'Settings', ar: 'الإعدادات' }, 
-                icon: 'settings-2', 
-                tableCols: { 
-                    en: ['Entity', 'Detail', 'Value'], 
-                    ar: ['الكيان', 'التفاصيل', 'القيمة'] 
-                }
-            }
+            { id: 'students', label: { en: 'Students', ar: 'الطلاب' }, icon: 'users', tableCols: { en: ['Stu-ID', 'Student Name', 'Age', 'Phone', 'Grade'], ar: ['رقم الطالب', 'اسم الطالب', 'العمر', 'الهاتف', 'السنة الدراسية'] } },
+            { id: 'subjects', label: { en: 'Subjects', ar: 'المواد والجدول' }, icon: 'calendar-clock', tableCols: { en: ['Grade', 'Subject Name', 'Teacher Name', 'Day', 'Room', 'Start Time'], ar: ['المستوى', 'اسم المادة', 'المعلم', 'اليوم', 'القاعة', 'وقت البدء'] } },
+            { id: 'income', label: { en: 'Income', ar: 'الإيرادات' }, icon: 'trending-up', tableCols: { en: ['Stu-ID', 'Student Name', 'Category', 'Subcategory', 'Amount', 'Date'], ar: ['رقم الطالب', 'اسم الطالب', 'الفئة', 'الفئة الفرعية', 'المبلغ', 'التاريخ'] } },
+            { id: 'expenses', label: { en: 'Expenses', ar: 'المصاريف' }, icon: 'trending-down', tableCols: { en: ['Expense ID', 'Title', 'Category', 'Subcategory', 'Amount', 'Date'], ar: ['المعرف', 'العنوان', 'الفئة', 'الفئة الفرعية', 'المبلغ', 'التاريخ'] } },
+            { id: 'cash_flow', label: { en: 'Cash Flow', ar: 'التدفق المالي' }, icon: 'arrow-left-right', tableCols: { en: ['Type', 'Label', 'Category', 'Amount', 'Date'], ar: ['النوع', 'البيان', 'الفئة', 'المبلغ', 'التاريخ'] } },
+            { id: 'config', label: { en: 'Settings', ar: 'الإعدادات' }, icon: 'settings-2', tableCols: { en: ['Entity', 'Detail', 'Value'], ar: ['الكيان', 'التفاصيل', 'القيمة'] } }
         ];
 
         // --- 3. State Management ---
@@ -184,6 +141,7 @@
             darkMode: false,
             language: 'ar',
             isModalOpen: false,
+            isSidebarOpen: false,
             loading: false,
             viewingStudentId: null,
             searchQuery: '',
@@ -215,7 +173,7 @@
         const _t = (en, ar) => state.language === 'en' ? en : ar;
         const ut = (key) => UI[state.language][key];
 
-        // --- 4. Logic ---
+        // --- 4. Logic & Handlers ---
         function generateID(prefix = 'STU-') {
             return prefix + Math.floor(1000 + Math.random() * 9000);
         }
@@ -224,37 +182,13 @@
             const studentNames = ["Ahmed Mohamed", "Sara Khalid"];
             studentNames.forEach((name, i) => {
                 const id = 'STU-' + (1001 + i);
-                state.data.students.push({
-                    'Stu-ID': id, 'Student Name': name, 'Age': 6 + i,
-                    'Phone': "0102345678" + i, 'Email': name.toLowerCase().replace(' ', '') + "@academy.com",
-                    'Grade': '1st Grade'
-                });
-                state.data.income.push({
-                    'Stu-ID': id, 'Student Name': name, 'Category': 'Tuition', 'Subcategory': 'Base Fee',
-                    'Amount': (3000 + (i * 500)), 'Date': '2024-02-15'
-                });
+                state.data.students.push({ 'Stu-ID': id, 'Student Name': name, 'Age': 6 + i, 'Phone': "0102345678" + i, 'Email': name.toLowerCase().replace(' ', '') + "@academy.com", 'Grade': '1st Grade' });
+                state.data.income.push({ 'Stu-ID': id, 'Student Name': name, 'Category': 'Tuition', 'Subcategory': 'Base Fee', 'Amount': (3000 + (i * 500)), 'Date': '2024-02-15' });
             });
-
-            // Make sure one subject is for "Today" (dynamically based on real world)
             const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-
-            state.data.subjects.push({
-                'Grade': '1st Grade', 'Subject Name': 'Mathematics', 'Teacher Name': 'Mr. Ahmed Khalil',
-                'Day': todayName, 'Room': 'Room 101', 'Start Time': '08:00 AM'
-            });
-            state.data.subjects.push({
-                'Grade': '2nd Grade', 'Subject Name': 'English Language', 'Teacher Name': 'Ms. Sara Smith',
-                'Day': todayName, 'Room': 'Room 102', 'Start Time': '10:30 AM'
-            });
-            state.data.subjects.push({
-                'Grade': '3rd Grade', 'Subject Name': 'Science', 'Teacher Name': 'Mr. Ahmed Khalil',
-                'Day': 'Friday', 'Room': 'Lab A', 'Start Time': '09:00 AM'
-            });
-
-            state.data.expenses.push({
-                'Expense ID': 'EXP-101', 'Title': 'Rent', 'Category': 'Operations', 'Subcategory': 'Rent',
-                'Amount': 5000, 'Date': '2024-02-01'
-            });
+            state.data.subjects.push({ 'Grade': '1st Grade', 'Subject Name': 'Mathematics', 'Teacher Name': 'Mr. Ahmed Khalil', 'Day': todayName, 'Room': 'Room 101', 'Start Time': '08:00 AM' });
+            state.data.subjects.push({ 'Grade': '2nd Grade', 'Subject Name': 'English Language', 'Teacher Name': 'Ms. Sara Smith', 'Day': todayName, 'Room': 'Room 102', 'Start Time': '10:30 AM' });
+            state.data.expenses.push({ 'Expense ID': 'EXP-101', 'Title': 'Rent', 'Category': 'Operations', 'Subcategory': 'Rent', 'Amount': 5000, 'Date': '2024-02-01' });
         }
 
         function getTotals() {
@@ -263,22 +197,30 @@
             return { inc, exp, net: inc - exp };
         }
 
+        window.handleCategoryChange = (selectEl) => {
+            const type = state.page === 'income' ? 'income' : 'expense';
+            const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
+            const subSelect = selectEl.form.Subcategory;
+            subSelect.innerHTML = '<option value="">Select Subcategory</option>';
+            const category = list.find(c => c.name === selectEl.value);
+            if (category && category.subs) {
+                category.subs.forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = opt.textContent = sub;
+                    subSelect.appendChild(opt);
+                });
+            }
+        };
+
         // --- Config Actions ---
         function addTeacher() {
             const input = document.getElementById('config-teacher-input');
             const name = input.value.trim();
-            if (name) {
-                state.data.config.teachers.push(name);
-                input.value = '';
-                render();
-                pushNotify("Teacher added.");
-            }
+            if (name) { state.data.config.teachers.push(name); input.value = ''; render(); pushNotify("Teacher added."); }
         }
 
         function deleteTeacher(index) {
-            state.data.config.teachers.splice(index, 1);
-            render();
-            pushNotify("Teacher removed.");
+            state.data.config.teachers.splice(index, 1); render(); pushNotify("Teacher removed.");
         }
 
         function addCategory(type) {
@@ -286,16 +228,13 @@
             const name = input.value.trim();
             if (name) {
                 const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-                list.push({ name, subs: [] });
-                input.value = '';
-                render();
+                list.push({ name, subs: [] }); input.value = ''; render();
             }
         }
 
         function deleteCategory(type, index) {
             const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-            list.splice(index, 1);
-            render();
+            list.splice(index, 1); render();
         }
 
         function addSub(type, catIdx) {
@@ -303,33 +242,25 @@
             const name = input.value.trim();
             if (name) {
                 const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-                list[catIdx].subs.push(name);
-                input.value = '';
-                render();
+                list[catIdx].subs.push(name); input.value = ''; render();
             }
         }
 
         function deleteSub(type, catIdx, subIdx) {
             const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-            list[catIdx].subs.splice(subIdx, 1);
-            render();
+            list[catIdx].subs.splice(subIdx, 1); render();
         }
 
         async function setPage(p) {
-            state.page = p;
-            state.viewingStudentId = null;
-            state.searchQuery = '';
-            state.gradeFilter = 'All';
-            render();
+            state.page = p; state.viewingStudentId = null; state.searchQuery = ''; state.gradeFilter = 'All'; state.isSidebarOpen = false; render();
         }
 
         function pushNotify(msg) {
             const container = document.getElementById('notification-container');
             const toast = document.createElement('div');
-            toast.className = 'bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 fade-in border-l-4 border-mantiq-cyan transition-all';
+            toast.className = 'bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 fade-in border-l-4 border-mantiq-cyan transition-all';
             toast.innerHTML = `<i data-lucide="info" class="text-mantiq-cyan w-5 h-5"></i><span class="text-xs font-bold">${msg}</span>`;
-            container.appendChild(toast);
-            lucide.createIcons();
+            container.appendChild(toast); lucide.createIcons();
             setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
         }
 
@@ -338,58 +269,36 @@
         function renderStudentSummary(id) {
             const student = state.data.students.find(s => s['Stu-ID'] === id);
             if (!student) return `<p>Not Found</p>`;
-
             const income = state.data.income.filter(i => i['Stu-ID'] === id);
             const totalPaid = income.reduce((acc, curr) => acc + parseFloat(curr.Amount), 0);
 
             return `
-                <div class="fade-in space-y-10">
+                <div class="fade-in space-y-8">
                     <div class="flex items-center justify-between">
                         <button onclick="state.viewingStudentId=null; render();" class="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase hover:text-mantiq-cyan transition-colors">
                             <i data-lucide="arrow-left" size="16" class="${state.language === 'ar' ? 'rotate-180' : ''}"></i> ${ut('backToList')}
                         </button>
-                        <h2 class="text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('studentProfile')}</h2>
+                        <h2 class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('studentProfile')}</h2>
                     </div>
-
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div class="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center">
-                            <div class="w-24 h-24 rounded-[2rem] bg-mantiq-navy text-white flex items-center justify-center font-black text-3xl mb-6 shadow-xl">
-                                ${student['Student Name'].charAt(0)}
-                            </div>
-                            <h3 class="text-xl font-black text-mantiq-navy dark:text-white mb-1 uppercase">${student['Student Name']}</h3>
+                        <div class="bg-white dark:bg-slate-900 p-6 lg:p-10 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col items-center">
+                            <div class="w-20 h-20 rounded-[1.5rem] bg-mantiq-navy text-white flex items-center justify-center font-black text-2xl mb-6 shadow-xl">${student['Student Name'].charAt(0)}</div>
+                            <h3 class="text-lg lg:text-xl font-black text-mantiq-navy dark:text-white mb-1 uppercase text-center">${student['Student Name']}</h3>
                             <p class="text-[10px] font-black text-mantiq-cyan tracking-widest mb-10">${student['Stu-ID']}</p>
-                            
                             <div class="w-full space-y-4 pt-8 border-t border-slate-100 dark:border-slate-800">
-                                ${Object.entries(student).map(([k,v]) => `
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${k}</span>
-                                        <span class="text-xs font-bold text-slate-700 dark:text-slate-200">${v}</span>
-                                    </div>
-                                `).join('')}
+                                ${Object.entries(student).map(([k,v]) => `<div class="flex justify-between items-center"><span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${k}</span><span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-right ml-2">${v}</span></div>`).join('')}
                             </div>
                         </div>
-
                         <div class="lg:col-span-2 space-y-6">
-                            <div class="bg-emerald-50 dark:bg-emerald-950/20 p-8 rounded-[2.5rem] border border-emerald-100 dark:border-emerald-900/30">
+                            <div class="bg-emerald-50 dark:bg-emerald-950/20 p-6 lg:p-8 rounded-[1.5rem] border border-emerald-100 dark:border-emerald-900/30">
                                 <h4 class="text-emerald-600 text-[10px] font-black uppercase mb-2 tracking-widest">Financial Standing</h4>
-                                <p class="text-4xl font-black text-emerald-700 dark:text-emerald-300 tracking-tighter">${totalPaid.toLocaleString()} EGP</p>
+                                <p class="text-3xl lg:text-4xl font-black text-emerald-700 dark:text-emerald-300 tracking-tighter">${totalPaid.toLocaleString()} EGP</p>
                                 <p class="text-[10px] text-emerald-500 font-bold mt-2 uppercase tracking-widest">Total Fees Paid to Date</p>
                             </div>
-
-                            <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
-                                <h4 class="text-sm font-black text-mantiq-navy dark:text-white uppercase mb-6 flex items-center gap-2">
-                                    <i data-lucide="receipt" size="18"></i> Payment History
-                                </h4>
+                            <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 p-6 lg:p-8 shadow-sm">
+                                <h4 class="text-sm font-black text-mantiq-navy dark:text-white uppercase mb-6 flex items-center gap-2"><i data-lucide="receipt" size="18"></i> Payment History</h4>
                                 <div class="space-y-4">
-                                    ${income.length ? income.map(item => `
-                                        <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
-                                            <div>
-                                                <p class="text-xs font-bold">${item.Category} - ${item.Subcategory}</p>
-                                                <p class="text-[10px] text-slate-400 font-bold">${item.Date}</p>
-                                            </div>
-                                            <span class="text-sm font-black text-emerald-600">+${parseFloat(item.Amount).toLocaleString()}</span>
-                                        </div>
-                                    `).join('') : '<p class="text-center text-xs text-slate-400 py-10 italic">No payments recorded</p>'}
+                                    ${income.length ? income.map(item => `<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl"><div><p class="text-xs font-bold">${item.Category} - ${item.Subcategory}</p><p class="text-[10px] text-slate-400 font-bold">${item.Date}</p></div><span class="text-sm font-black text-emerald-600 ml-2">+${parseFloat(item.Amount).toLocaleString()}</span></div>`).join('') : '<p class="text-center text-xs text-slate-400 py-10 italic">No payments recorded</p>'}
                                 </div>
                             </div>
                         </div>
@@ -404,132 +313,49 @@
             const todayLectures = state.data.subjects.filter(s => s.Day === todayName);
 
             return `
-                <!-- Numerical Widgets -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-                        <h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Total Students</h3>
-                        <p class="text-3xl font-black text-mantiq-navy dark:text-white tracking-tighter">${state.data.students.length}</p>
-                    </div>
-                    <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-                        <h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Revenue</h3>
-                        <p class="text-3xl font-black text-emerald-500 tracking-tighter">${stats.inc.toLocaleString()}</p>
-                    </div>
-                    <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-                        <h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Expenses</h3>
-                        <p class="text-3xl font-black text-rose-500 tracking-tighter">${stats.exp.toLocaleString()}</p>
-                    </div>
-                    <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-                        <h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Net Cash</h3>
-                        <p class="text-3xl font-black text-mantiq-cyan tracking-tighter">${stats.net.toLocaleString()}</p>
-                    </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 shadow-sm"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Total Students</h3><p class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white tracking-tighter">${state.data.students.length}</p></div>
+                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 shadow-sm"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Revenue</h3><p class="text-2xl lg:text-3xl font-black text-emerald-500 tracking-tighter">${stats.inc.toLocaleString()}</p></div>
+                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 shadow-sm"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Expenses</h3><p class="text-2xl lg:text-3xl font-black text-rose-500 tracking-tighter">${stats.exp.toLocaleString()}</p></div>
+                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 shadow-sm"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Net Cash</h3><p class="text-2xl lg:text-3xl font-black text-mantiq-cyan tracking-tighter">${stats.net.toLocaleString()}</p></div>
                 </div>
-
-                <!-- TODAY'S LECTURES SECTION -->
                 <div class="mb-12">
-                    <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-xl font-black text-mantiq-navy dark:text-white uppercase tracking-tight flex items-center gap-2">
-                            <i data-lucide="calendar" class="text-mantiq-cyan"></i> ${ut('todaySchedule')}
-                        </h3>
-                        <span class="text-[10px] font-black text-slate-400 uppercase bg-slate-100 dark:bg-slate-800 px-4 py-1 rounded-full">${todayName}</span>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6"><h3 class="text-xl font-black text-mantiq-navy dark:text-white uppercase tracking-tight flex items-center gap-2"><i data-lucide="calendar" class="text-mantiq-cyan"></i> ${ut('todaySchedule')}</h3><span class="text-[10px] font-black text-slate-400 uppercase bg-slate-100 dark:bg-slate-800 px-4 py-1 rounded-full">${todayName}</span></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         ${todayLectures.length ? todayLectures.map(lec => `
-                            <div class="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-                                <div class="flex justify-between items-start mb-4">
-                                    <div class="p-2 bg-mantiq-cyan/10 text-mantiq-cyan rounded-xl">
-                                        <i data-lucide="book-open" size="20"></i>
-                                    </div>
-                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${lec.Room}</span>
-                                </div>
-                                <div class="mb-6">
-                                    <h4 class="text-lg font-black text-mantiq-navy dark:text-white">${lec['Subject Name']}</h4>
-                                    <p class="text-xs font-bold text-slate-500">${lec['Teacher Name']}</p>
-                                </div>
-                                <div class="flex items-center justify-between border-t border-slate-50 dark:border-slate-800 pt-4">
-                                    <div class="flex items-center gap-2 text-mantiq-cyan">
-                                        <i data-lucide="clock" size="14"></i>
-                                        <span class="text-xs font-black">${lec['Start Time']}</span>
-                                    </div>
-                                    <span class="text-[9px] font-black px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 uppercase">${lec.Grade}</span>
-                                </div>
-                            </div>
-                        `).join('') : `
-                            <div class="col-span-full py-12 text-center bg-slate-100/50 dark:bg-slate-800/20 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
-                                <p class="text-slate-400 font-bold uppercase tracking-widest text-sm">${ut('noLectures')}</p>
-                            </div>
-                        `}
+                            <div class="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                                <div class="flex justify-between items-start mb-4"><div class="p-2 bg-mantiq-cyan/10 text-mantiq-cyan rounded-xl"><i data-lucide="book-open" size="20"></i></div><span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${lec.Room}</span></div>
+                                <div class="mb-6"><h4 class="text-lg font-black text-mantiq-navy dark:text-white">${lec['Subject Name']}</h4><p class="text-xs font-bold text-slate-500">${lec['Teacher Name']}</p></div>
+                                <div class="flex items-center justify-between border-t border-slate-50 dark:border-slate-800 pt-4"><div class="flex items-center gap-2 text-mantiq-cyan"><i data-lucide="clock" size="14"></i><span class="text-xs font-black">${lec['Start Time']}</span></div><span class="text-[9px] font-black px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 uppercase">${lec.Grade}</span></div>
+                            </div>`).join('') : `<div class="col-span-full py-12 text-center bg-slate-100/50 dark:bg-slate-800/20 rounded-[1.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800"><p class="text-slate-400 font-bold uppercase tracking-widest text-sm p-4">${ut('noLectures')}</p></div>`}
                     </div>
                 </div>
-
-                <!-- Hero Section -->
-                <div class="bg-white dark:bg-slate-900 rounded-[3.5rem] p-16 border border-slate-200 dark:border-slate-800 text-center relative overflow-hidden flex flex-col items-center justify-center">
-                    <div class="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><i data-lucide="graduation-cap" size="240"></i></div>
-                    <h2 class="text-4xl font-black text-mantiq-navy dark:text-white mb-4 uppercase tracking-tighter">Academic Control Center</h2>
-                    <p class="text-slate-500 max-w-xl mx-auto text-lg leading-relaxed">Unified dashboard for student lifecycle, financial cash flow, and academic scheduling.</p>
+                <div class="bg-white dark:bg-slate-900 rounded-[2rem] lg:rounded-[3.5rem] p-10 lg:p-16 border border-slate-200 shadow-sm text-center relative overflow-hidden flex flex-col items-center justify-center">
+                    <div class="absolute top-0 right-0 p-10 opacity-5 pointer-events-none hidden lg:block"><i data-lucide="graduation-cap" size="240"></i></div>
+                    <h2 class="text-2xl lg:text-4xl font-black text-mantiq-navy dark:text-white mb-4 uppercase tracking-tighter">Academic Control Center</h2>
+                    <p class="text-slate-500 max-w-xl mx-auto text-sm lg:text-lg leading-relaxed">Unified dashboard for student lifecycle, financial cash flow, and academic scheduling.</p>
                 </div>
             `;
         }
 
         function renderCashFlow() {
             const totals = getTotals();
-            let all = [
-                ...state.data.income.map(x => ({ ...x, type: 'in', label: x['Student Name'] })),
-                ...state.data.expenses.map(x => ({ ...x, type: 'out', label: x['Title'] }))
-            ].sort((a,b) => new Date(b.Date) - new Date(a.Date));
-
-            if (state.searchQuery) {
-                const q = state.searchQuery.toLowerCase();
-                all = all.filter(item => 
-                    item.label.toLowerCase().includes(q) || 
-                    item.Category.toLowerCase().includes(q)
-                );
-            }
-
+            let all = [...state.data.income.map(x => ({ ...x, type: 'in', label: x['Student Name'] })), ...state.data.expenses.map(x => ({ ...x, type: 'out', label: x['Title'] }))].sort((a,b) => new Date(b.Date) - new Date(a.Date));
+            if (state.searchQuery) { const q = state.searchQuery.toLowerCase(); all = all.filter(item => item.label.toLowerCase().includes(q) || item.Category.toLowerCase().includes(q)); }
             return `
-                <div class="fade-in space-y-10">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-emerald-50 dark:bg-emerald-950/20 p-8 rounded-[2rem] border border-emerald-100 dark:border-emerald-900/20">
-                            <h4 class="text-emerald-600 text-[10px] font-black uppercase mb-1">${ut('inflow')}</h4>
-                            <p class="text-3xl font-black text-emerald-700 dark:text-emerald-300 tracking-tighter">${totals.inc.toLocaleString()} EGP</p>
-                        </div>
-                        <div class="bg-rose-50 dark:bg-rose-950/20 p-8 rounded-[2rem] border border-rose-100 dark:border-rose-900/20">
-                            <h4 class="text-rose-600 text-[10px] font-black uppercase mb-1">${ut('outflow')}</h4>
-                            <p class="text-3xl font-black text-rose-700 dark:text-rose-300 tracking-tighter">${totals.exp.toLocaleString()} EGP</p>
-                        </div>
-                        <div class="bg-mantiq-navy dark:bg-white p-8 rounded-[2rem] shadow-xl">
-                            <h4 class="text-mantiq-cyan text-[10px] font-black uppercase mb-1">${ut('netCash')}</h4>
-                            <p class="text-3xl font-black text-white dark:text-mantiq-navy tracking-tighter">${totals.net.toLocaleString()} EGP</p>
-                        </div>
+                <div class="fade-in space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+                        <div class="bg-emerald-50 dark:bg-emerald-950/20 p-6 rounded-[1.5rem] border border-emerald-100 dark:border-emerald-900/20"><h4 class="text-emerald-600 text-[10px] font-black uppercase mb-1">${ut('inflow')}</h4><p class="text-2xl lg:text-3xl font-black text-emerald-700 dark:text-emerald-300 tracking-tighter">${totals.inc.toLocaleString()} EGP</p></div>
+                        <div class="bg-rose-50 dark:bg-rose-950/20 p-6 rounded-[1.5rem] border border-rose-100 dark:border-rose-900/20"><h4 class="text-rose-600 text-[10px] font-black uppercase mb-1">${ut('outflow')}</h4><p class="text-2xl lg:text-3xl font-black text-rose-700 dark:text-rose-300 tracking-tighter">${totals.exp.toLocaleString()} EGP</p></div>
+                        <div class="bg-mantiq-navy dark:bg-white p-6 rounded-[1.5rem] shadow-xl"><h4 class="text-mantiq-cyan text-[10px] font-black uppercase mb-1">${ut('netCash')}</h4><p class="text-2xl lg:text-3xl font-black text-white dark:text-mantiq-navy tracking-tighter">${totals.net.toLocaleString()} EGP</p></div>
                     </div>
-
-                    <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm overflow-hidden">
-                        <div class="mb-6 flex gap-4">
-                            <div class="flex-1 relative">
-                                <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
-                                <input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="state.searchQuery = this.value; render();" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-mantiq-cyan border-none" />
-                            </div>
-                        </div>
-                        <div class="overflow-x-auto">
+                    <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 p-4 lg:p-6 shadow-sm overflow-hidden">
+                        <div class="mb-6"><div class="relative"><i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i><input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="state.searchQuery = this.value; render();" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-mantiq-cyan border-none" /></div></div>
+                        <div class="overflow-x-auto custom-scrollbar">
                             <table class="w-full text-left border-collapse" dir="${state.language==='ar'?'rtl':'ltr'}">
-                                <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-400">
-                                    <tr>
-                                        <th class="px-8 py-6">Status</th>
-                                        <th class="px-8 py-6">Label</th>
-                                        <th class="px-8 py-6">Category</th>
-                                        <th class="px-8 py-6">Amount</th>
-                                        <th class="px-8 py-6">Date</th>
-                                    </tr>
-                                </thead>
+                                <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-400"><tr><th class="px-6 py-6 whitespace-nowrap">Status</th><th class="px-6 py-6 whitespace-nowrap">Label</th><th class="px-6 py-6 whitespace-nowrap">Category</th><th class="px-6 py-6 whitespace-nowrap">Amount</th><th class="px-6 py-6 whitespace-nowrap">Date</th></tr></thead>
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                    ${all.map(t => `
-                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
-                                            <td class="px-8 py-6"><span class="px-3 py-1 rounded-lg text-[9px] font-black uppercase ${t.type==='in'?'bg-emerald-100 text-emerald-600':'bg-rose-100 text-rose-600'}">${t.type==='in'?'Inflow':'Outflow'}</span></td>
-                                            <td class="px-8 py-6 text-sm font-bold">${t.label}</td>
-                                            <td class="px-8 py-6 text-xs text-slate-500">${t.Category}</td>
-                                            <td class="px-8 py-6 font-black text-sm ${t.type==='in'?'text-emerald-600':'text-rose-600'}">${t.type==='in'?'+':'-'}${parseFloat(t.Amount).toLocaleString()}</td>
-                                            <td class="px-8 py-6 text-xs text-slate-400">${t.Date}</td>
-                                        </tr>
-                                    `).join('')}
+                                    ${all.map(t => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors"><td class="px-6 py-6"><span class="px-3 py-1 rounded-lg text-[9px] font-black uppercase whitespace-nowrap ${t.type==='in'?'bg-emerald-100 text-emerald-600':'bg-rose-100 text-rose-600'}">${t.type==='in'?'Inflow':'Outflow'}</span></td><td class="px-6 py-6 text-sm font-bold whitespace-nowrap">${t.label}</td><td class="px-6 py-6 text-xs text-slate-500 whitespace-nowrap">${t.Category}</td><td class="px-6 py-6 font-black text-sm whitespace-nowrap ${t.type==='in'?'text-emerald-600':'text-rose-600'}">${t.type==='in'?'+':'-'}${parseFloat(t.Amount).toLocaleString()}</td><td class="px-6 py-6 text-xs text-slate-400 whitespace-nowrap">${t.Date}</td></tr>`).join('')}
                                 </tbody>
                             </table>
                         </div>
@@ -541,120 +367,49 @@
         function renderTable() {
             const nav = ACADEMY_NAV.find(n => n.id === state.page);
             let rawData = state.data[state.page] || [];
-
-            if (state.searchQuery) {
-                const q = state.searchQuery.toLowerCase();
-                rawData = rawData.filter(row => 
-                    Object.values(row).some(val => String(val).toLowerCase().includes(q))
-                );
-            }
-
-            if (state.gradeFilter !== 'All' && ['students', 'subjects', 'income'].includes(state.page)) {
-                rawData = rawData.filter(row => row.Grade === state.gradeFilter);
-            }
+            if (state.searchQuery) { const q = state.searchQuery.toLowerCase(); rawData = rawData.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(q))); }
+            if (state.gradeFilter !== 'All' && ['students', 'subjects', 'income'].includes(state.page)) { rawData = rawData.filter(row => row.Grade === state.gradeFilter); }
             
             return `
-                <div class="flex flex-col md:flex-row justify-between md:items-center gap-6 mb-10">
-                    <div>
-                        <h2 class="text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${_t(nav.label.en, nav.label.ar)}</h2>
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">${rawData.length} Results Found</p>
-                    </div>
-                    <button onclick="state.isModalOpen=true; render();" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy px-8 py-4 rounded-2xl font-black text-[10px] uppercase shadow-xl hover:scale-105 transition-transform">
-                        ${ut('addRecord')}
-                    </button>
+                <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-6 mb-10">
+                    <div><h2 class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${_t(nav.label.en, nav.label.ar)}</h2><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">${rawData.length} Results Found</p></div>
+                    <button onclick="state.isModalOpen=true; render();" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy px-6 py-4 rounded-xl font-black text-[10px] uppercase shadow-xl hover:scale-105 transition-transform w-full lg:w-auto">${ut('addRecord')}</button>
                 </div>
-
-                <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm mb-8 flex flex-wrap gap-4 items-center">
-                    <div class="flex-1 min-w-[200px] relative">
-                        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
-                        <input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="state.searchQuery = this.value; render();" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-mantiq-cyan border-none" />
-                    </div>
-                    ${['students', 'subjects', 'income'].includes(state.page) ? `
-                        <div class="flex items-center gap-3">
-                            <span class="text-[10px] font-black uppercase text-slate-400">${_t('Grade', 'المستوى')}</span>
-                            <select onchange="state.gradeFilter = this.value; render();" class="bg-slate-50 dark:bg-slate-800 border-none px-4 py-3 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan">
-                                <option value="All">${ut('filterAll')}</option>
-                                ${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}" ${state.gradeFilter === g ? 'selected' : ''}>${g}</option>`).join('')}
-                            </select>
-                        </div>
-                    ` : ''}
+                <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 p-4 lg:p-6 shadow-sm mb-8 flex flex-col sm:flex-row gap-4 items-center">
+                    <div class="w-full flex-1 relative"><i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i><input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="state.searchQuery = this.value; render();" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-1 focus:ring-mantiq-cyan border-none" /></div>
+                    ${['students', 'subjects', 'income'].includes(state.page) ? `<div class="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl"><span class="text-[10px] font-black uppercase text-slate-400">${_t('Grade', 'المستوى')}</span><select onchange="state.gradeFilter = this.value; render();" class="bg-transparent border-none text-xs font-bold outline-none focus:ring-0"><option value="All">${ut('filterAll')}</option>${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}" ${state.gradeFilter === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div>` : ''}
                 </div>
-
-                <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm overflow-x-auto">
-                    <table class="w-full text-left border-collapse" dir="${state.language==='ar'?'rtl':'ltr'}">
-                        <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase tracking-widest font-black text-slate-400">
-                            <tr>
-                                ${nav.tableCols.en.map((c, i) => `<th class="px-8 py-7 whitespace-nowrap">${_t(c, nav.tableCols.ar[i])}</th>`).join('')}
-                                <th class="px-8 py-7 text-center">${ut('action')}</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                            ${rawData.length ? rawData.map(row => `
-                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                                    ${nav.tableCols.en.map(k => {
-                                        let content = row[k] || '-';
-                                        return `<td class="px-8 py-6 font-bold text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">${content}</td>`;
-                                    }).join('')}
-                                    <td class="px-8 py-6 text-center flex justify-center gap-2">
-                                        ${state.page === 'students' ? `
-                                            <button onclick="state.viewingStudentId='${row['Stu-ID']}'; render();" class="p-2 text-mantiq-cyan hover:bg-mantiq-cyan/10 rounded-xl transition-all">
-                                                <i data-lucide="user" size="18"></i>
-                                            </button>
-                                        ` : ''}
-                                        <button onclick="pushNotify('${ut('restricted')}')" class="p-2 text-slate-300 hover:text-rose-500 transition-all"><i data-lucide="trash-2" size="18"></i></button>
-                                    </td>
-                                </tr>
-                            `).join('') : `<tr><td colspan="10" class="p-20 text-center italic text-slate-400 font-bold uppercase tracking-widest">${ut('empty')}</td></tr>`}
-                        </tbody>
-                    </table>
+                <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse" dir="${state.language==='ar'?'rtl':'ltr'}">
+                            <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase tracking-widest font-black text-slate-400"><tr>${nav.tableCols.en.map((c, i) => `<th class="px-6 py-6 whitespace-nowrap">${_t(c, nav.tableCols.ar[i])}</th>`).join('')}<th class="px-6 py-6 text-center whitespace-nowrap">${ut('action')}</th></tr></thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                ${rawData.length ? rawData.map(row => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">${nav.tableCols.en.map(k => `<td class="px-6 py-5 font-bold text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">${row[k] || '-'}</td>`).join('')}<td class="px-6 py-5 text-center flex justify-center gap-2">${state.page === 'students' ? `<button onclick="state.viewingStudentId='${row['Stu-ID']}'; render();" class="p-2 text-mantiq-cyan hover:bg-mantiq-cyan/10 rounded-xl transition-all"><i data-lucide="user" size="18"></i></button>` : ''}<button onclick="pushNotify('${ut('restricted')}')" class="p-2 text-slate-300 hover:text-rose-500 transition-all"><i data-lucide="trash-2" size="18"></i></button></td></tr>`).join('') : `<tr><td colspan="10" class="p-20 text-center italic text-slate-400 font-bold uppercase tracking-widest">${ut('empty')}</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             `;
         }
 
         function renderApp() {
-            const navItems = ACADEMY_NAV.map(item => `
-                <button onclick="setPage('${item.id}')" class="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-sm font-bold transition-all ${state.page === item.id ? 'bg-mantiq-cyan text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}">
-                    <i data-lucide="${item.icon}" size="18"></i>
-                    <span class="truncate">${_t(item.label.en, item.label.ar)}</span>
-                </button>
-            `).join('');
-
+            const navItems = ACADEMY_NAV.map(item => `<button onclick="setPage('${item.id}')" class="w-full flex items-center gap-4 px-6 py-4 rounded-xl lg:rounded-2xl text-sm font-bold transition-all ${state.page === item.id ? 'bg-mantiq-cyan text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}"><i data-lucide="${item.icon}" size="18"></i><span class="truncate">${_t(item.label.en, item.label.ar)}</span></button>`).join('');
             const currentNav = ACADEMY_NAV.find(n => n.id === state.page);
 
             return `
                 <div class="flex h-screen overflow-hidden">
-                    <aside class="hidden lg:flex w-72 flex-col fixed ${state.language === 'en' ? 'left-0 border-r' : 'right-0 border-l'} top-0 h-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 z-30">
-                        <div class="p-8 border-b border-slate-100 dark:border-slate-800">
-                             <div class="flex items-center gap-2"><i data-lucide="graduation-cap" class="text-mantiq-cyan"></i><span class="text-xl font-black uppercase tracking-tighter">MANTIQ</span></div>
-                        </div>
-                        <nav class="flex-1 p-6 space-y-1 overflow-y-auto custom-scrollbar">
-                            ${navItems}
-                        </nav>
-                        <div class="p-6 border-t border-slate-100 dark:border-slate-800">
-                             <div class="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
-                                <div class="w-10 h-10 rounded-xl bg-mantiq-navy text-white flex items-center justify-center font-black text-xs">SA</div>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-xs font-black truncate">Admin Portal</p>
-                                    <p class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">${ut('role')}</p>
-                                </div>
-                             </div>
-                        </div>
+                    <div id="mobile-sidebar-overlay" onclick="state.isSidebarOpen = false; render();" class="fixed inset-0 z-40 sidebar-overlay transition-opacity lg:hidden ${state.isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}"></div>
+                    <aside class="fixed lg:static w-72 flex flex-col h-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 z-50 transition-transform duration-300 lg:translate-x-0 ${state.language === 'en' ? 'left-0 border-r -translate-x-full' : 'right-0 border-l translate-x-full'} ${state.isSidebarOpen ? 'translate-x-0' : ''}">
+                        <div class="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center"><div class="flex items-center gap-2"><div class="p-1.5 bg-mantiq-cyan rounded-xl"><i data-lucide="graduation-cap" class="text-white w-5 h-5"></i></div><span class="text-xl font-black tracking-tighter text-mantiq-navy dark:text-white uppercase">MANTIQ</span></div><button onclick="state.isSidebarOpen = false; render();" class="lg:hidden text-slate-400"><i data-lucide="x" size="24"></i></button></div>
+                        <nav class="flex-1 p-6 space-y-1 overflow-y-auto custom-scrollbar">${navItems}</nav>
+                        <div class="p-6 border-t border-slate-100 dark:border-slate-800"><div class="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl"><div class="w-10 h-10 rounded-xl bg-mantiq-navy text-white flex items-center justify-center font-black text-xs">SA</div><div class="flex-1 min-w-0"><p class="text-xs font-black truncate">Admin Portal</p><p class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">${ut('role')}</p></div></div></div>
                     </aside>
-
-                    <div class="flex-1 ${state.language === 'en' ? 'lg:pl-72' : 'lg:pr-72'} h-screen overflow-y-auto custom-scrollbar">
-                        <header class="h-24 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 flex items-center justify-between px-10">
-                            <h2 class="text-2xl font-black tracking-tight text-mantiq-navy dark:text-white uppercase">
-                                ${state.viewingStudentId ? ut('studentProfile') : _t(currentNav.label.en, currentNav.label.ar)}
-                            </h2>
-                            <div class="flex items-center gap-4">
-                                <button onclick="state.language = state.language === 'en' ? 'ar' : 'en'; document.body.dir=state.language==='ar'?'rtl':'ltr'; render();" class="text-[10px] font-black uppercase px-4 py-2 border rounded-xl border-slate-200 dark:border-slate-800">${state.language === 'en' ? 'Arabic' : 'English'}</button>
-                                <button onclick="state.darkMode=!state.darkMode; document.documentElement.classList.toggle('dark'); render();" class="p-3 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-800"><i data-lucide="${state.darkMode ? 'sun' : 'moon'}" size="18"></i></button>
-                            </div>
+                    <div class="flex-1 h-screen overflow-y-auto custom-scrollbar relative">
+                        <header class="h-20 lg:h-24 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10">
+                            <div class="flex items-center gap-4"><button onclick="state.isSidebarOpen = true; render();" class="lg:hidden p-2 text-mantiq-navy dark:text-white"><i data-lucide="menu" size="24"></i></button><h2 class="text-lg lg:text-2xl font-black tracking-tight text-mantiq-navy dark:text-white uppercase truncate">${state.viewingStudentId ? ut('studentProfile') : _t(currentNav.label.en, currentNav.label.ar)}</h2></div>
+                            <div class="flex items-center gap-2 lg:gap-4"><button onclick="state.language = state.language === 'en' ? 'ar' : 'en'; document.body.dir=state.language==='ar'?'rtl':'ltr'; render();" class="text-[8px] lg:text-[10px] font-black uppercase px-3 lg:px-4 py-2 border rounded-xl border-slate-200 dark:border-slate-800 whitespace-nowrap">${state.language === 'en' ? 'Arabic' : 'English'}</button><button onclick="state.darkMode=!state.darkMode; document.documentElement.classList.toggle('dark'); render();" class="p-2.5 lg:p-3 bg-white dark:bg-slate-800 rounded-full border border-slate-200"><i data-lucide="${state.darkMode ? 'sun' : 'moon'}" size="16"></i></button></div>
                         </header>
-
-                        <main class="p-8 md:p-12 max-w-7xl mx-auto">
-                            ${state.viewingStudentId ? renderStudentSummary(state.viewingStudentId) : (state.page === 'dashboard' ? renderDashboard() : (state.page === 'config' ? renderConfig() : (state.page === 'cash_flow' ? renderCashFlow() : renderTable())))}
-                        </main>
+                        <main class="p-4 lg:p-12 max-w-7xl mx-auto">${state.viewingStudentId ? renderStudentSummary(state.viewingStudentId) : (state.page === 'dashboard' ? renderDashboard() : (state.page === 'config' ? renderConfig() : (state.page === 'cash_flow' ? renderCashFlow() : renderTable())))}</main>
                     </div>
                 </div>
                 ${state.isModalOpen ? renderModal() : ''}
@@ -663,83 +418,24 @@
 
         function renderConfig() {
             return `
-                <div class="fade-in space-y-10 pb-20">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div class="fade-in space-y-8 pb-20">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                        <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 shadow-sm">
                             <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="user-plus" class="text-mantiq-cyan"></i> Teachers</h3>
-                            <div class="flex gap-2 mb-6">
-                                <input id="config-teacher-input" type="text" placeholder="${ut('addTeacher')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan" />
-                                <button onclick="addTeacher()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy p-3 rounded-xl hover:scale-105 transition-transform"><i data-lucide="plus"></i></button>
-                            </div>
-                            <div class="space-y-3">
-                                ${state.data.config.teachers.map((t, idx) => `
-                                    <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                        <span class="text-sm font-bold">${t}</span>
-                                        <button onclick="deleteTeacher(${idx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="trash-2" size="16"></i></button>
-                                    </div>
-                                `).join('')}
-                            </div>
+                            <div class="flex gap-2 mb-6"><input id="config-teacher-input" type="text" placeholder="${ut('addTeacher')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan min-w-0" /><button onclick="addTeacher()" class="bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy p-3 rounded-xl hover:scale-105 transition-transform"><i data-lucide="plus"></i></button></div>
+                            <div class="space-y-3">${state.data.config.teachers.map((t, idx) => `<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100"> <span class="text-sm font-bold">${t}</span> <button onclick="deleteTeacher(${idx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
                         </div>
-
-                        <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm space-y-10">
-                             <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="layers" class="text-mantiq-cyan"></i> Categories Management</h3>
-                             
+                        <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 shadow-sm space-y-10">
+                             <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="layers" class="text-mantiq-cyan"></i> Categories</h3>
                              <div class="space-y-4">
                                  <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-l-2 border-emerald-500 pl-2">Income Structure</p>
-                                 <div class="flex gap-2">
-                                     <input id="config-income-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan" />
-                                     <button onclick="addCategory('income')" class="bg-emerald-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button>
-                                 </div>
-                                 <div class="grid grid-cols-1 gap-4">
-                                     ${state.data.config.incomeCategories.map((cat, cIdx) => `
-                                         <div class="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                             <div class="flex justify-between items-center mb-4">
-                                                 <span class="text-xs font-black uppercase">${cat.name}</span>
-                                                 <button onclick="deleteCategory('income', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button>
-                                             </div>
-                                             <div class="flex flex-wrap gap-2 mb-4">
-                                                 ${cat.subs.map((s, sIdx) => `
-                                                     <span class="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1">
-                                                         ${s} <button onclick="deleteSub('income', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button>
-                                                     </span>
-                                                 `).join('')}
-                                             </div>
-                                             <div class="flex gap-2">
-                                                 <input id="config-income-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-3 py-2 text-[10px] outline-none" />
-                                                 <button onclick="addSub('income', ${cIdx})" class="text-emerald-500 hover:scale-110 transition-transform"><i data-lucide="plus-circle" size="20"></i></button>
-                                             </div>
-                                         </div>
-                                     `).join('')}
-                                 </div>
+                                 <div class="flex gap-2"><input id="config-income-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold min-w-0" /><button onclick="addCategory('income')" class="bg-emerald-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button></div>
+                                 <div class="grid grid-cols-1 gap-4">${state.data.config.incomeCategories.map((cat, cIdx) => `<div class="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100"><div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="deleteCategory('income', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div><div class="flex flex-wrap gap-2 mb-3">${cat.subs.map((s, sIdx) => `<span class="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="deleteSub('income', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}</div><div class="flex gap-2"><input id="config-income-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="addSub('income', ${cIdx})" class="text-emerald-500"><i data-lucide="plus-circle" size="18"></i></button></div></div>`).join('')}</div>
                              </div>
-
                              <div class="space-y-4">
                                  <p class="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-2 border-rose-500 pl-2">Expense Structure</p>
-                                 <div class="flex gap-2">
-                                     <input id="config-expense-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold outline-none focus:ring-1 focus:ring-mantiq-cyan" />
-                                     <button onclick="addCategory('expense')" class="bg-rose-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button>
-                                 </div>
-                                 <div class="grid grid-cols-1 gap-4">
-                                     ${state.data.config.expenseCategories.map((cat, cIdx) => `
-                                         <div class="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                             <div class="flex justify-between items-center mb-4">
-                                                 <span class="text-xs font-black uppercase">${cat.name}</span>
-                                                 <button onclick="deleteCategory('expense', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button>
-                                             </div>
-                                             <div class="flex flex-wrap gap-2 mb-4">
-                                                 ${cat.subs.map((s, sIdx) => `
-                                                     <span class="bg-rose-50 dark:bg-rose-950/20 text-rose-600 px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1">
-                                                         ${s} <button onclick="deleteSub('expense', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button>
-                                                     </span>
-                                                 `).join('')}
-                                             </div>
-                                             <div class="flex gap-2">
-                                                 <input id="config-expense-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-3 py-2 text-[10px] outline-none" />
-                                                 <button onclick="addSub('expense', ${cIdx})" class="text-rose-500 hover:scale-110 transition-transform"><i data-lucide="plus-circle" size="20"></i></button>
-                                             </div>
-                                         </div>
-                                     `).join('')}
-                                 </div>
+                                 <div class="flex gap-2"><input id="config-expense-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold min-w-0" /><button onclick="addCategory('expense')" class="bg-rose-500 text-white p-3 rounded-xl"><i data-lucide="plus" size="16"></i></button></div>
+                                 <div class="grid grid-cols-1 gap-4">${state.data.config.expenseCategories.map((cat, cIdx) => `<div class="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100"><div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="deleteCategory('expense', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div><div class="flex flex-wrap gap-2 mb-3">${cat.subs.map((s, sIdx) => `<span class="bg-rose-50 dark:bg-rose-950/20 text-rose-600 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1">${s} <button onclick="deleteSub('expense', ${cIdx}, ${sIdx})"><i data-lucide="x" size="10"></i></button></span>`).join('')}</div><div class="flex gap-2"><input id="config-expense-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 border-none rounded-lg px-2 py-1 text-[9px] min-w-0" /><button onclick="addSub('expense', ${cIdx})" class="text-rose-500"><i data-lucide="plus-circle" size="18"></i></button></div></div>`).join('')}</div>
                              </div>
                         </div>
                     </div>
@@ -753,42 +449,25 @@
                 if ((col === 'Stu-ID' && state.page === 'students') || (col === 'Expense ID' && state.page === 'expenses')) return '';
                 const label = _t(col, nav.tableCols.ar[i]);
 
-                if (col === 'Teacher Name') {
-                    return `<div class="flex flex-col gap-2"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-mantiq-cyan appearance-none">${state.data.config.teachers.map(t => `<option value="${t}">${t}</option>`).join('')}</select></div>`;
-                }
-                if (col === 'Day') {
-                    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                    return `<div class="flex flex-col gap-2"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-5 py-4 text-sm font-bold appearance-none">${days.map(d => `<option value="${d}">${d}</option>`).join('')}</select></div>`;
-                }
-                if (col === 'Grade') {
-                    return `<div class="flex flex-col gap-2"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-5 py-4 text-sm font-bold appearance-none">${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}">${g}</option>`).join('')}</select></div>`;
-                }
-                if (col === 'Category') {
-                    const list = state.page === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-                    return `<div class="flex flex-col gap-2"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-5 py-4 text-sm font-bold appearance-none" onchange="const s = this.form.Subcategory; s.innerHTML = ''; const subs = ${JSON.stringify(list)}.find(c => c.name === this.value)?.subs || []; subs.forEach(x => { const o = document.createElement('option'); o.value = x; o.text = x; s.add(o); });"><option value="">Select Category</option>${list.map(c => `<option value="${c.name}">${c.name}</option>`).join('')}</select></div>`;
-                }
-                if (col === 'Subcategory') {
-                    return `<div class="flex flex-col gap-2"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-5 py-4 text-sm font-bold appearance-none"><option value="">Select category first</option></select></div>`;
-                }
-                if ((state.page === 'income') && col === 'Student Name') {
-                    return `<div class="flex flex-col gap-2"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-5 py-4 text-sm font-bold appearance-none">${state.data.students.map(s => `<option value="${s['Student Name']}">${s['Student Name']}</option>`).join('')}</select></div>`;
-                }
+                if (col === 'Teacher Name') return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold appearance-none">${state.data.config.teachers.map(t => `<option value="${t}">${t}</option>`).join('')}</select></div>`;
+                if (col === 'Day') return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold appearance-none">${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => `<option value="${d}">${d}</option>`).join('')}</select></div>`;
+                if (col === 'Grade') return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold appearance-none">${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}">${g}</option>`).join('')}</select></div>`;
+                if (col === 'Category') return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold appearance-none" onchange="handleCategoryChange(this)"><option value="">Select Category</option>${(state.page === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories).map(c => `<option value="${c.name}">${c.name}</option>`).join('')}</select></div>`;
+                if (col === 'Subcategory') return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold appearance-none"><option value="">Select category first</option></select></div>`;
+                if ((state.page === 'income') && col === 'Student Name') return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold appearance-none">${state.data.students.map(s => `<option value="${s['Student Name']}">${s['Student Name']}</option>`).join('')}</select></div>`;
 
-                return `<div class="flex flex-col gap-2"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><input type="${col.includes('Date') ? 'date' : (col.includes('Amount') ? 'number' : 'text')}" name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-mantiq-cyan" required /></div>`;
+                return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><input type="${col.includes('Date') ? 'date' : (col.includes('Amount') ? 'number' : 'text')}" name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold" required /></div>`;
             }).join('');
 
             return `
-                <div class="fixed inset-0 z-[100] flex items-center justify-center p-6 modal-overlay fade-in">
-                    <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] p-12 shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar border border-slate-100 dark:border-slate-800">
-                        <div class="flex justify-between items-start mb-10">
-                            <div><h2 class="text-2xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('addRecord')}</h2></div>
-                            <button onclick="state.isModalOpen=false; render();" class="text-slate-300 hover:text-rose-500 transition-colors"><i data-lucide="x" size="28"></i></button>
-                        </div>
-                        <form id="add-record-form" onsubmit="handleAddData(event)" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-overlay fade-in">
+                    <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2rem] p-6 lg:p-12 shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar border border-slate-100">
+                        <div class="flex justify-between items-start mb-6 lg:mb-10"><div><h2 class="text-xl lg:text-2xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('addRecord')}</h2></div><button onclick="state.isModalOpen=false; render();" class="text-slate-300 hover:text-rose-500"><i data-lucide="x" size="24"></i></button></div>
+                        <form id="add-record-form" onsubmit="handleAddData(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             ${fields}
-                            <div class="md:col-span-2 flex gap-4 mt-8">
-                                <button type="button" onclick="state.isModalOpen=false; render();" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-500 py-5 rounded-2xl font-black text-xs uppercase">${ut('cancel')}</button>
-                                <button type="submit" class="flex-1 bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy py-5 rounded-2xl font-black text-xs uppercase shadow-xl hover:scale-[1.02] transition-transform">${ut('submit')}</button>
+                            <div class="md:col-span-2 flex flex-col sm:flex-row gap-3 mt-8">
+                                <button type="button" onclick="state.isModalOpen=false; render();" class="order-2 sm:order-1 flex-1 bg-slate-100 dark:bg-slate-800 text-slate-500 py-4 rounded-xl font-black text-xs uppercase">${ut('cancel')}</button>
+                                <button type="submit" class="order-1 sm:order-2 flex-1 bg-mantiq-navy dark:bg-white text-white dark:text-mantiq-navy py-4 rounded-xl font-black text-xs uppercase shadow-xl hover:scale-[1.02] transition-transform">${ut('submit')}</button>
                             </div>
                         </form>
                     </div>
@@ -796,36 +475,9 @@
             `;
         }
 
-        async function handleAddData(e) {
-            e.preventDefault();
-            const form = document.getElementById('add-record-form');
-            const formData = new FormData(form);
-            const record = {};
-            formData.forEach((v, k) => record[k] = v);
-            
-            if (state.page === 'income' && record['Student Name']) {
-                const s = state.data.students.find(s => s['Student Name'] === record['Student Name']);
-                if (s) record['Stu-ID'] = s['Stu-ID'];
-            }
-            if (state.page === 'students' && !record['Stu-ID']) record['Stu-ID'] = generateID('STU-');
-            if (state.page === 'expenses' && !record['Expense ID']) record['Expense ID'] = generateID('EXP-');
-
-            state.loading = true; render();
-            try {
-                if (!state.data[state.page]) state.data[state.page] = [];
-                state.data[state.page] = [record, ...state.data[state.page]];
-                pushNotify("Entry Saved Successfully");
-                state.isModalOpen = false;
-            } catch (err) { pushNotify("Error: " + err.message); }
-            state.loading = false; render();
-        }
-
         function render() {
             const root = document.getElementById('app');
-            if (root) {
-                root.innerHTML = renderApp();
-                lucide.createIcons();
-            }
+            if (root) { root.innerHTML = renderApp(); lucide.createIcons(); }
         }
 
         window.onload = () => { initMockData(); render(); };

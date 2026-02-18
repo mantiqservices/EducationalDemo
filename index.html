@@ -121,7 +121,8 @@
                 gradeFee: "Base Fee", todaySchedule: "Today's Schedule",
                 noLectures: "No lectures scheduled for today.", empty: "No records found.", action: "Action",
                 online: "Connected", offline: "Offline", exportExcel: "Excel", exportPDF: "PDF",
-                rightClickAlert: "Security Alert: Right-click is restricted on this platform."
+                rightClickAlert: "Security Alert: restricted to be safe.",
+                searchableInfo: "Info: Type in Student Name to search and auto-fill ID."
             },
             ar: {
                 dashboard: "نظرة عامة", volume: "إجمالي الإيرادات", assets: "عدد الطلاب",
@@ -134,7 +135,8 @@
                 gradeFee: "الرسوم الأساسية", todaySchedule: "محاضرات اليوم",
                 noLectures: "لا توجد محاضرات مجدولة لليوم.", empty: "لا توجد سجلات حالية.", action: "إجراء",
                 online: "متصل", offline: "غير متصل", exportExcel: "اكسل", exportPDF: "PDF",
-                rightClickAlert: "تنبيه أمني: النقر بزر الفأرة الأيمن غير مسموح به في هذه المنصة."
+                rightClickAlert: "تنبيه أمني:المنصة محمية .",
+                searchableInfo: "تنبيه: اكتب اسم الطالب للبحث وسيتم ملء الرقم تلقائياً."
             }
         };
 
@@ -284,7 +286,6 @@
             });
             
             const nextID = max + 1;
-            // Pad to 4 digits for consistent look: STU-0001
             return prefix + String(nextID).padStart(4, '0');
         }
 
@@ -306,6 +307,14 @@
                     opt.value = opt.textContent = sub;
                     subSelect.appendChild(opt);
                 });
+            }
+        };
+
+        window.updateIncomeStuId = (name) => {
+            const student = state.data.students.find(s => s['Student Name'] === name);
+            const idInput = document.querySelector('#add-record-form input[name="Stu-ID"]');
+            if (student && idInput) {
+                idInput.value = student['Stu-ID'];
             }
         };
 
@@ -418,7 +427,13 @@
 
         window.setViewingStudent = (id) => { state.viewingStudentId = id; render(); };
         window.closeModal = () => { state.isModalOpen = false; render(); };
-        window.openModal = () => { state.isModalOpen = true; render(); };
+        window.openModal = () => { 
+            state.isModalOpen = true; 
+            render(); 
+            if (state.page === 'income') {
+                setTimeout(() => pushNotify(ut('searchableInfo')), 200);
+            }
+        };
         window.toggleSidebar = () => { state.isSidebarOpen = !state.isSidebarOpen; render(); };
         window.toggleDarkMode = () => { state.darkMode = !state.darkMode; document.documentElement.classList.toggle('dark'); render(); };
         window.toggleLanguage = () => { state.language = state.language === 'en' ? 'ar' : 'en'; document.body.dir = state.language === 'ar' ? 'rtl' : 'ltr'; render(); };
@@ -456,8 +471,8 @@
                     <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-6">
                         <h2 class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('netCash')}</h2>
                         <div class="flex gap-2">
-                             <button onclick='window.exportToExcel(${JSON.stringify(all)}, "CashFlow")' class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200"><i data-lucide="file-spreadsheet" size="16"></i> ${ut('exportExcel')}</button>
-                             <button onclick='window.exportToPDF(${JSON.stringify(all)}, "CashFlow", ["type", "label", "Category", "Amount", "Date"])' class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200"><i data-lucide="file-text" size="16"></i> ${ut('exportPDF')}</button>
+                             <button onclick='window.exportToExcel(${JSON.stringify(all)}, "CashFlow")' class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200"><i data-lucide="file-spreadsheet" size="16"></i> Excel</button>
+                             <button onclick='window.exportToPDF(${JSON.stringify(all)}, "CashFlow", ["type", "label", "Category", "Amount", "Date"])' class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200"><i data-lucide="file-text" size="16"></i> PDF</button>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
@@ -484,6 +499,7 @@
             return `
                 <div class="fade-in space-y-8 pb-20">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- Teachers Section -->
                         <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl">
                             <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="user-plus" class="text-mantiq-cyan"></i> Teachers</h3>
                             <div class="flex gap-2 mb-6">
@@ -492,6 +508,8 @@
                             </div>
                             <div class="space-y-3">${state.data.config.teachers.map((t, idx) => `<div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800/40 dark:border-none"><span class="text-sm font-bold">${t}</span><button onclick="window.deleteTeacher(${idx})" class="text-rose-400"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
                         </div>
+
+                        <!-- Grades & Fees Section -->
                         <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl">
                             <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="graduation-cap" class="text-mantiq-cyan"></i> Grades & Fees</h3>
                             <div class="space-y-3 mb-6">
@@ -503,6 +521,37 @@
                             </div>
                             <div class="space-y-3">${Object.entries(state.data.config.gradeFees).map(([grade, fee]) => `<div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800/40 dark:border-none"><div><p class="text-sm font-black">${grade}</p><p class="text-[10px] text-mantiq-cyan font-bold uppercase">${fee.toLocaleString()} EGP</p></div><button onclick="window.deleteGrade('${grade}')" class="text-rose-400"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
                         </div>
+                    </div>
+
+                    <!-- Financial Categories Management -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        ${['income', 'expense'].map(type => `
+                            <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl">
+                                <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="layers" class="${type==='income'?'text-emerald-500':'text-rose-500'}"></i> ${type.charAt(0).toUpperCase()+type.slice(1)} Categories</h3>
+                                <div class="flex gap-2 mb-6">
+                                    <input id="config-${type}-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                                    <button onclick="window.addCategory('${type}')" class="bg-mantiq-navy dark:bg-slate-700 text-white p-3 rounded-xl"><i data-lucide="plus"></i></button>
+                                </div>
+                                <div class="space-y-4">
+                                    ${(type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories).map((cat, cIdx) => `
+                                        <div class="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-none shadow-sm">
+                                            <div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="window.deleteCategory('${type}', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div>
+                                            <div class="flex flex-wrap gap-2 mb-3">
+                                                ${cat.subs.map((s, sIdx) => `
+                                                    <span class="bg-white dark:bg-slate-700 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1 shadow-sm">
+                                                        ${s} 
+                                                        <button onclick="window.deleteSub('${type}', ${cIdx}, ${sIdx})" class="text-slate-400 hover:text-rose-500"><i data-lucide="x" size="10"></i></button>
+                                                    </span>`).join('')}
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <input id="config-${type}-sub-input-${cIdx}" type="text" placeholder="${ut('addSub')}..." class="flex-1 bg-white dark:bg-slate-900 rounded-lg px-2 py-1 text-[9px] outline-none border border-slate-200 dark:border-none shadow-inner" />
+                                                <button onclick="window.addSub('${type}', ${cIdx})" class="text-emerald-500 hover:scale-110 transition-transform"><i data-lucide="plus-circle" size="18"></i></button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `;
@@ -588,9 +637,14 @@
                 if (col === 'Category') return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold" onchange="window.handleCategoryChange(this)"><option value="">Select Category</option>${(state.page === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories).map(c => `<option value="${c.name}">${c.name}</option>`).join('')}</select></div>`;
                 if (col === 'Subcategory') return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold"><option value="">Select Category First</option></select></div>`;
                 
-                // Smart Student Selection for Income
                 if (state.page === 'income' && col === 'Student Name') {
-                    return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><select name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold" required><option value="">Select Student</option>${state.data.students.map(s => `<option value="${s['Student Name']}">${s['Student Name']} (${s['Stu-ID']})</option>`).join('')}</select></div>`;
+                    return `<div class="flex flex-col gap-1">
+                        <label class="text-[9px] font-black uppercase text-slate-400">${label}</label>
+                        <input type="text" list="student-names-list" name="${col}" oninput="window.updateIncomeStuId(this.value)" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold" placeholder="Search or type name..." required />
+                        <datalist id="student-names-list">
+                            ${state.data.students.map(s => `<option value="${s['Student Name']}">${s['Stu-ID']}</option>`).join('')}
+                        </datalist>
+                    </div>`;
                 }
 
                 return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><input type="${col.includes('Date') ? 'date' : (col.includes('Amount') ? 'number' : 'text')}" name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold" required /></div>`;
@@ -624,7 +678,6 @@
                 if (s) { record['Stu-ID'] = s['Stu-ID']; record['Grade'] = s['Grade']; }
             }
             
-            // Sequential ID generation for Students and Expenses
             if (state.page === 'students' && !record['Stu-ID']) {
                 record['Stu-ID'] = generateID('STU-', state.data.students);
             }

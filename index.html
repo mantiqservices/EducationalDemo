@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MANTIQ |[ Academy Name ] Management System</title>
+    <title>MANTIQ | Academy Management System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
@@ -293,7 +293,7 @@
             doc.rect(0, 0, 297, 30, 'F');
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(22);
-            doc.text(`Academy Name - ${pageName.toUpperCase()}`, 14, 20);
+            doc.text(`MANTIQ ACADEMY - ${pageName.toUpperCase()}`, 14, 20);
 
             // Metadata Design
             doc.setTextColor(100, 100, 100);
@@ -366,7 +366,12 @@
         window.setViewingTeacher = (name) => { state.viewingTeacherName = name; render(); };
 
         // --- Attendance Logic ---
-        window.handleAttDateChange = (date) => { state.attDate = date; state.tempAttendance = {}; render(); };
+        window.handleAttDateChange = (date) => { 
+            state.attDate = date; 
+            state.tempAttendance = {}; 
+            state.attLecture = 'General';
+            render(); 
+        };
         window.handleAttTypeChange = (type) => { state.attType = type; state.tempAttendance = {}; render(); };
         window.handleAttLectureChange = (lec) => { state.attLecture = lec; state.tempAttendance = {}; render(); };
         window.setAttStatus = (id, status) => { 
@@ -545,20 +550,85 @@
         }
 
         function renderAttendance() {
-            const list = state.attType === 'Students' ? state.data.students : state.data.config.teachers;
-            const lectures = [...new Set(state.data.subjects.map(s => s['Subject Name']))];
+            // Get day name from selected date
+            const dayName = new Date(state.attDate).toLocaleDateString('en-US', { weekday: 'long' });
+            
+            // Get subjects occurring on this day
+            const subjectsToday = state.data.subjects.filter(s => s.Day === dayName);
+            
+            let list = [];
+            if (state.attType === 'Students') {
+                // Show students whose grade has a lecture today
+                const gradesToday = [...new Set(subjectsToday.map(s => s.Grade))];
+                list = state.data.students.filter(stu => gradesToday.includes(stu.Grade));
+            } else {
+                // Show teachers who have a lecture today
+                const teachersToday = [...new Set(subjectsToday.map(s => s['Teacher Name']))];
+                list = state.data.config.teachers.filter(t => teachersToday.includes(t));
+            }
+
             const records = state.data.attendance.filter(a => a.Date === state.attDate && a.Type === state.attType && a.Lecture === state.attLecture);
+
             return `
                 <div class="fade-in space-y-8">
-                    <div class="flex flex-col lg:flex-row justify-between gap-6"><h2 class="text-3xl font-black uppercase tracking-tighter">${ut('attendance')}</h2><div class="flex flex-wrap gap-4 items-end bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-none"><div><label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">${ut('attDate')}</label><input type="date" value="${state.attDate}" onchange="window.handleAttDateChange(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none" /></div><div><label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">${ut('attType')}</label><select onchange="window.handleAttTypeChange(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none"><option value="Students" ${state.attType==='Students'?'selected':''}>${ut('attStudents')}</option><option value="Teachers" ${state.attType==='Teachers'?'selected':''}>${ut('attTeachers')}</option></select></div><div><label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">${ut('attLecture')}</label><select onchange="window.handleAttLectureChange(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none"><option value="General">General</option>${lectures.map(l => `<option value="${l}" ${state.attLecture===l?'selected':''}>${l}</option>`).join('')}</select></div><button onclick="window.saveAttendance()" class="bg-mantiq-navy dark:bg-mantiq-cyan dark:text-mantiq-navy text-white px-8 py-3 rounded-xl font-black text-xs uppercase shadow-lg hover:scale-105 transition-all">${ut('attSave')}</button></div></div>
-                    <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left"><thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase"><tr><th class="px-8 py-6">Name</th><th class="px-8 py-6">Status</th><th class="px-8 py-6">Note</th><th class="px-8 py-6 text-center">Action</th></tr></thead><tbody class="divide-y divide-slate-100 dark:divide-slate-800">${list.map(item => {
-                        const id = state.attType === 'Students' ? item['Stu-ID'] : item;
-                        const name = state.attType === 'Students' ? item['Student Name'] : item;
-                        const r = records.find(x => x.TargetID === id);
-                        const status = state.tempAttendance[id]?.status || (r ? r.Status : null);
-                        const note = state.tempAttendance[id]?.note || (r ? r.Note : "");
-                        return `<tr><td class="px-8 py-5"><p class="text-sm font-black">${name}</p>${state.attType==='Students'?`<p class="text-[9px] text-slate-400 font-black">${id}</p>`:''}</td><td class="px-8 py-5">${status?`<span class="px-3 py-1 rounded text-[8px] font-black uppercase ${status==='Present'?'bg-emerald-50 text-emerald-600':'bg-rose-50 text-rose-600'}">${status}</span>`:'-'}</td><td class="px-8 py-5">${status==='Absent'?`<input type="text" placeholder="Note..." oninput="window.setAttNote('${id}', this.value)" value="${note}" class="bg-slate-50 px-2 py-1 rounded text-xs outline-none w-full max-w-[150px]" />`:'-'}</td><td class="px-8 py-5 flex justify-center gap-2"><button onclick="window.setAttStatus('${id}','Present')" class="px-4 py-2 rounded-xl text-[9px] font-black uppercase ${status==='Present'?'bg-emerald-500 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-400'}">${ut('attPresent')}</button><button onclick="window.setAttStatus('${id}','Absent')" class="px-4 py-2 rounded-xl text-[9px] font-black uppercase ${status==='Absent'?'bg-rose-500 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-400'}">${ut('attAbsent')}</button></td></tr>`;
-                    }).join('')}</tbody></table></div></div>
+                    <div class="flex flex-col lg:flex-row justify-between gap-6">
+                        <h2 class="text-3xl font-black uppercase tracking-tighter">${ut('attendance')}</h2>
+                        <div class="flex flex-wrap gap-4 items-end bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-none">
+                            <div>
+                                <label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">${ut('attDate')}</label>
+                                <input type="date" value="${state.attDate}" onchange="window.handleAttDateChange(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none" />
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">${ut('attType')}</label>
+                                <select onchange="window.handleAttTypeChange(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none">
+                                    <option value="Students" ${state.attType==='Students'?'selected':''}>${ut('attStudents')}</option>
+                                    <option value="Teachers" ${state.attType==='Teachers'?'selected':''}>${ut('attTeachers')}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">${ut('attLecture')}</label>
+                                <select onchange="window.handleAttLectureChange(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none">
+                                    <option value="General" ${state.attLecture==='General'?'selected':''}>General</option>
+                                    ${subjectsToday.map(s => `<option value="${s['Subject Name']}" ${state.attLecture===s['Subject Name']?'selected':''}>${s['Subject Name']} (${s.Grade})</option>`).join('')}
+                                </select>
+                            </div>
+                            <button onclick="window.saveAttendance()" class="bg-mantiq-navy dark:bg-mantiq-cyan dark:text-mantiq-navy text-white px-8 py-3 rounded-xl font-black text-xs uppercase shadow-lg hover:scale-105 transition-all">${ut('attSave')}</button>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase">
+                                    <tr><th class="px-8 py-6">Name</th><th class="px-8 py-6">Status</th><th class="px-8 py-6">Note</th><th class="px-8 py-6 text-center">Action</th></tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    ${list.length > 0 ? list.map(item => {
+                                        const id = state.attType === 'Students' ? item['Stu-ID'] : item;
+                                        const name = state.attType === 'Students' ? item['Student Name'] : item;
+                                        const r = records.find(x => x.TargetID === id);
+                                        const status = state.tempAttendance[id]?.status || (r ? r.Status : null);
+                                        const note = state.tempAttendance[id]?.note || (r ? r.Note : "");
+                                        return `<tr>
+                                            <td class="px-8 py-5">
+                                                <p class="text-sm font-black">${name}</p>
+                                                ${state.attType==='Students'?`<p class="text-[9px] text-slate-400 font-black">${id} - Grade: ${item.Grade}</p>`:''}
+                                            </td>
+                                            <td class="px-8 py-5">
+                                                ${status?`<span class="px-3 py-1 rounded text-[8px] font-black uppercase ${status==='Present'?'bg-emerald-50 text-emerald-600':'bg-rose-50 text-rose-600'}">${status}</span>`:'-'}
+                                            </td>
+                                            <td class="px-8 py-5">
+                                                ${status==='Absent'?`<input type="text" placeholder="Note..." oninput="window.setAttNote('${id}', this.value)" value="${note}" class="bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded text-xs outline-none w-full max-w-[150px]" />`:'-'}
+                                            </td>
+                                            <td class="px-8 py-5 flex justify-center gap-2">
+                                                <button onclick="window.setAttStatus('${id}','Present')" class="px-4 py-2 rounded-xl text-[9px] font-black uppercase ${status==='Present'?'bg-emerald-500 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-400'}">${ut('attPresent')}</button>
+                                                <button onclick="window.setAttStatus('${id}','Absent')" class="px-4 py-2 rounded-xl text-[9px] font-black uppercase ${status==='Absent'?'bg-rose-500 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-400'}">${ut('attAbsent')}</button>
+                                            </td>
+                                        </tr>`;
+                                    }).join('') : `<tr><td colspan="4" class="py-20 text-center text-slate-300 font-black uppercase">${dayName}: ${ut('noLectures')}</td></tr>`}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             `;
         }

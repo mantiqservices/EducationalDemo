@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MANTIQ | Academy Management System</title>
+    <title>MANTIQ | American Academy System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- Export Libraries -->
+    <!-- مكتبات التصدير -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
-    <!-- Firebase SDKs -->
+    <!-- تهيئة Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -75,12 +75,6 @@
             background-color: rgba(0, 30, 60, 0.7);
             backdrop-filter: blur(8px);
         }
-
-        /* Subtle Dark Mode Shadow Replacement */
-        .dark .dark-shadow-only {
-            border: none !important;
-            box-shadow: 0 4px 20px -2px rgba(255, 255, 255, 0.03), 0 2px 10px -2px rgba(255, 255, 255, 0.02);
-        }
     </style>
     <script>
         tailwind.config = {
@@ -108,7 +102,7 @@
         import { signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { collection, onSnapshot, doc, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Constants & UI ---
+        // --- نصوص الواجهة والترجمات ---
         const UI = {
             en: {
                 dashboard: "Academy Overview", volume: "Total Revenue", assets: "Students",
@@ -121,8 +115,15 @@
                 gradeFee: "Base Fee", todaySchedule: "Today's Schedule",
                 noLectures: "No lectures scheduled for today.", empty: "No records found.", action: "Action",
                 online: "Connected", offline: "Offline", exportExcel: "Excel", exportPDF: "PDF",
-                rightClickAlert: "Security Alert: Right-click is restricted on this platform.",
-                searchableInfo: "Info: Type in Student Name to search and auto-fill ID."
+                rightClickAlert: "Security Alert: Right-click is restricted.",
+                searchableInfo: "Info: Search by Name to auto-fill ID.",
+                confirmTitle: "Delete Confirmation",
+                confirmMsgPre: "Are you sure you want to delete",
+                confirmMsgPost: "? This action cannot be undone.",
+                confirmBtn: "Yes, Delete",
+                keepBtn: "No, Keep it",
+                type_teacher: "Teacher", type_grade: "Grade", type_category: "Category", type_subcategory: "Subcategory", type_entry: "Entry",
+                currency: "EGP"
             },
             ar: {
                 dashboard: "نظرة عامة", volume: "إجمالي الإيرادات", assets: "عدد الطلاب",
@@ -135,8 +136,15 @@
                 gradeFee: "الرسوم الأساسية", todaySchedule: "محاضرات اليوم",
                 noLectures: "لا توجد محاضرات مجدولة لليوم.", empty: "لا توجد سجلات حالية.", action: "إجراء",
                 online: "متصل", offline: "غير متصل", exportExcel: "اكسل", exportPDF: "PDF",
-                rightClickAlert: "تنبيه أمني: النقر بزر الفأرة الأيمن غير مسموح به في هذه المنصة.",
-                searchableInfo: "تنبيه: اكتب اسم الطالب للبحث وسيتم ملء الرقم تلقائياً."
+                rightClickAlert: "تنبيه أمني: النقر بزر الفأرة الأيمن غير مسموح به.",
+                searchableInfo: "تنبيه: ابحث بالاسم ليتم ملء الرقم تلقائياً.",
+                confirmTitle: "تأكيد الحذف",
+                confirmMsgPre: "هل أنت متأكد من حذف",
+                confirmMsgPost: "؟ لا يمكن التراجع عن هذا الإجراء.",
+                confirmBtn: "نعم، احذف",
+                keepBtn: "لا، احتفظ به",
+                type_teacher: "المعلم", type_grade: "المستوى", type_category: "الفئة", type_subcategory: "الفئة الفرعية", type_entry: "السجل",
+                currency: "ج.م"
             }
         };
 
@@ -150,7 +158,7 @@
             { id: 'config', label: { en: 'Settings', ar: 'الإعدادات' }, icon: 'settings-2', tableCols: { en: ['Entity', 'Detail', 'Value'], ar: ['الكيان', 'التفاصيل', 'القيمة'] } }
         ];
 
-        // --- State Management ---
+        // --- إدارة الحالة (State) ---
         let state = {
             page: 'dashboard',
             darkMode: false,
@@ -163,6 +171,7 @@
             gradeFilter: 'All',
             user: null,
             isConnected: false,
+            deleteConfirmation: null, 
             data: {
                 students: [],
                 income: [],
@@ -181,67 +190,63 @@
         const _t = (en, ar) => state.language === 'en' ? en : ar;
         const ut = (key) => UI[state.language][key];
 
-        // --- Right-Click Restriction logic ---
-        document.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            pushNotify(ut('rightClickAlert'));
-        });
+        // --- منطق الأعمال المساعد ---
+        function getTotals() {
+            const inc = state.data.income.reduce((s, i) => s + (parseFloat(i.Amount) || 0), 0);
+            const exp = state.data.expenses.reduce((s, e) => s + (parseFloat(e.Amount) || 0), 0);
+            return { inc, exp, net: inc - exp };
+        }
 
-        // --- Firebase Integration Logic ---
-        
-        window.initAuth = async () => {
-            const auth = window.mantiqAuth;
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Auth error:", error);
-            }
-
-            onAuthStateChanged(auth, (user) => {
-                state.user = user;
-                state.isConnected = !!user;
-                if (user) setupListeners();
-                render();
+        function generateID(prefix = 'STU-', currentList = []) { 
+            let max = 0;
+            const idKey = prefix === 'STU-' ? 'Stu-ID' : 'Expense ID';
+            currentList.forEach(item => {
+                const idStr = item[idKey] || '';
+                const numPart = parseInt(idStr.replace(prefix, ''));
+                if (!isNaN(numPart) && numPart > max) max = numPart;
             });
+            const nextID = max + 1;
+            return prefix + String(nextID).padStart(4, '0');
+        }
+
+        // --- ربط الدوال بـ window لإصلاح أخطاء النطاق ---
+        window.setPage = (p) => { 
+            state.page = p; 
+            state.viewingStudentId = null; 
+            state.searchQuery = ''; 
+            state.gradeFilter = 'All'; 
+            state.isSidebarOpen = false; 
+            render(); 
+        };
+        window.handleSearch = (val) => { state.searchQuery = val; render(); };
+        window.handleGradeFilter = (val) => { state.gradeFilter = val; render(); };
+        window.toggleSidebar = () => { state.isSidebarOpen = !state.isSidebarOpen; render(); };
+        window.toggleDarkMode = () => { state.darkMode = !state.darkMode; document.documentElement.classList.toggle('dark'); render(); };
+        window.toggleLanguage = () => { 
+            state.language = state.language === 'en' ? 'ar' : 'en'; 
+            document.body.dir = state.language === 'ar' ? 'rtl' : 'ltr'; 
+            render(); 
+        };
+        window.openModal = () => { 
+            state.isModalOpen = true; 
+            render(); 
+            if (state.page === 'income') setTimeout(() => pushNotify(ut('searchableInfo')), 200);
+        };
+        window.closeModal = () => { state.isModalOpen = false; render(); };
+        window.setViewingStudent = (id) => { state.viewingStudentId = id; render(); };
+        
+        window.askForConfirmation = (callback, typeKey, itemLabel) => {
+            state.deleteConfirmation = { callback, typeKey, itemLabel };
+            render();
+        };
+        window.cancelDelete = () => { state.deleteConfirmation = null; render(); };
+        window.executeDelete = async () => {
+            if (state.deleteConfirmation?.callback) await state.deleteConfirmation.callback();
+            state.deleteConfirmation = null;
+            render();
         };
 
-        function setupListeners() {
-            const db = window.mantiqDb;
-            const appId = window.mantiqAppId;
-
-            const syncCollection = (collName) => {
-                const q = collection(db, 'artifacts', appId, 'public', 'data', collName);
-                onSnapshot(q, (snapshot) => {
-                    state.data[collName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    render();
-                }, (err) => {
-                    if (err.code === 'permission-denied') pushNotify("Firestore Permission Denied.");
-                });
-            };
-
-            ['students', 'income', 'expenses', 'subjects'].forEach(syncCollection);
-
-            const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
-            onSnapshot(configDoc, (docSnap) => {
-                if (docSnap.exists()) state.data.config = docSnap.data();
-                else setDoc(configDoc, state.data.config);
-                render();
-            });
-        }
-
-        async function updateFirebaseConfig() {
-            if (!state.user) return;
-            const db = window.mantiqDb;
-            const appId = window.mantiqAppId;
-            const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
-            await setDoc(configDoc, state.data.config);
-        }
-
-        // --- Export Logic ---
+        // --- دوال التصدير ---
         window.exportToExcel = (data, fileName) => {
             if (!data || data.length === 0) return pushNotify("No data to export");
             const cleanData = data.map(item => { const { id, ...rest } = item; return rest; });
@@ -261,38 +266,71 @@
             doc.save(`${fileName}.pdf`);
         };
 
-        // --- Business Logic ---
-        
-        // Revised generateID to follow a sequence based on current data
-        function generateID(prefix = 'STU-', currentList = []) { 
-            let max = 0;
-            const idKey = prefix === 'STU-' ? 'Stu-ID' : 'Expense ID';
-            
-            currentList.forEach(item => {
-                const idStr = item[idKey] || '';
-                const numPart = parseInt(idStr.replace(prefix, ''));
-                if (!isNaN(numPart) && numPart > max) {
-                    max = numPart;
+        // --- Firebase التكامل ---
+        window.initAuth = async () => {
+            const auth = window.mantiqAuth;
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
                 }
+            } catch (error) { console.error("Auth error:", error); }
+
+            onAuthStateChanged(auth, (user) => {
+                state.user = user;
+                state.isConnected = !!user;
+                if (user) setupListeners();
+                render();
             });
-            
-            const nextID = max + 1;
-            return prefix + String(nextID).padStart(4, '0');
+        };
+
+        function setupListeners() {
+            const db = window.mantiqDb;
+            const appId = window.mantiqAppId;
+
+            const syncCollection = (collName) => {
+                const q = collection(db, 'artifacts', appId, 'public', 'data', collName);
+                onSnapshot(q, (snapshot) => {
+                    state.data[collName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    render();
+                });
+            };
+
+            ['students', 'income', 'expenses', 'subjects'].forEach(syncCollection);
+            const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+            onSnapshot(configDoc, (docSnap) => {
+                if (docSnap.exists()) state.data.config = docSnap.data();
+                else setDoc(configDoc, state.data.config);
+                render();
+            });
         }
 
-        function getTotals() {
-            const inc = state.data.income.reduce((s, i) => s + (parseFloat(i.Amount) || 0), 0);
-            const exp = state.data.expenses.reduce((s, e) => s + (parseFloat(e.Amount) || 0), 0);
-            return { inc, exp, net: inc - exp };
-        }
+        // --- إدارة السجلات ---
+        window.deleteEntry = (id, label) => {
+            window.askForConfirmation(async () => {
+                if (!state.user) return;
+                const db = window.mantiqDb; const appId = window.mantiqAppId;
+                try { 
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.page, id)); 
+                    pushNotify(state.language === 'en' ? "Deleted successfully" : "تم الحذف بنجاح"); 
+                } catch (err) { console.error(err); }
+            }, 'type_entry', label || id);
+        };
+
+        window.updateIncomeStuId = (name) => {
+            const student = state.data.students.find(s => s['Student Name'] === name);
+            const idInput = document.querySelector('#add-record-form input[name="Stu-ID"]');
+            if (student && idInput) idInput.value = student['Stu-ID'];
+        };
 
         window.handleCategoryChange = (selectEl) => {
             const type = state.page === 'income' ? 'income' : 'expense';
             const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
             const subSelect = selectEl.form.Subcategory;
-            subSelect.innerHTML = '<option value="">Select Subcategory</option>';
+            subSelect.innerHTML = `<option value="">${state.language === 'en' ? 'Select Subcategory' : 'اختر الفئة الفرعية'}</option>`;
             const category = list.find(c => c.name === selectEl.value);
-            if (category && category.subs) {
+            if (category?.subs) {
                 category.subs.forEach(sub => {
                     const opt = document.createElement('option');
                     opt.value = opt.textContent = sub;
@@ -301,69 +339,73 @@
             }
         };
 
-        window.updateIncomeStuId = (name) => {
-            const student = state.data.students.find(s => s['Student Name'] === name);
-            const idInput = document.querySelector('#add-record-form input[name="Stu-ID"]');
-            if (student && idInput) {
-                idInput.value = student['Stu-ID'];
-            }
-        };
-
+        // --- Settings Management Functions ---
         window.addTeacher = async () => {
             const input = document.getElementById('config-teacher-input');
             const name = input.value.trim();
-            if (name) { state.data.config.teachers.push(name); input.value = ''; await updateFirebaseConfig(); pushNotify("Teacher added."); }
+            if (name) { state.data.config.teachers.push(name); input.value = ''; await updateFirebaseConfig(); render(); }
         };
-
-        window.deleteTeacher = async (index) => {
-            state.data.config.teachers.splice(index, 1); await updateFirebaseConfig(); pushNotify("Teacher removed.");
+        window.deleteTeacher = (index) => {
+            const label = state.data.config.teachers[index];
+            window.askForConfirmation(async () => {
+                state.data.config.teachers.splice(index, 1);
+                await updateFirebaseConfig();
+            }, 'type_teacher', label);
         };
-
         window.addGrade = async () => {
             const nameInput = document.getElementById('config-grade-name-input');
             const feeInput = document.getElementById('config-grade-fee-input');
             const name = nameInput.value.trim(); const fee = parseFloat(feeInput.value);
-            if (name && !isNaN(fee)) { state.data.config.gradeFees[name] = fee; nameInput.value = ''; feeInput.value = ''; await updateFirebaseConfig(); pushNotify("Grade added."); }
+            if (name && !isNaN(fee)) { state.data.config.gradeFees[name] = fee; nameInput.value = ''; feeInput.value = ''; await updateFirebaseConfig(); render(); }
         };
-
-        window.deleteGrade = async (grade) => { delete state.data.config.gradeFees[grade]; await updateFirebaseConfig(); pushNotify("Grade removed."); };
-
+        window.deleteGrade = (grade) => {
+            window.askForConfirmation(async () => {
+                delete state.data.config.gradeFees[grade];
+                await updateFirebaseConfig();
+            }, 'type_grade', grade);
+        };
         window.addCategory = async (type) => {
             const input = document.getElementById(`config-${type}-cat-input`);
             const name = input.value.trim();
             if (name) {
                 const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
                 list.push({ name, subs: [] });
-                input.value = '';
-                await updateFirebaseConfig();
-                pushNotify("Category added.");
+                input.value = ''; await updateFirebaseConfig(); render();
             }
         };
-
-        window.deleteCategory = async (type, index) => {
+        window.deleteCategory = (type, index) => {
             const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-            list.splice(index, 1); await updateFirebaseConfig(); pushNotify("Category removed.");
+            const label = list[index].name;
+            window.askForConfirmation(async () => {
+                list.splice(index, 1); await updateFirebaseConfig();
+            }, 'type_category', label);
         };
-
         window.addSub = async (type, catIdx) => {
             const input = document.getElementById(`config-${type}-sub-input-${catIdx}`);
             const name = input.value.trim();
             if (name) {
                 const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
                 list[catIdx].subs.push(name);
-                input.value = '';
-                await updateFirebaseConfig();
-                pushNotify("Subcategory added.");
+                input.value = ''; await updateFirebaseConfig(); render();
             }
         };
-
-        window.deleteSub = async (type, catIdx, subIdx) => {
+        window.deleteSub = (type, catIdx, subIdx) => {
             const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-            list[catIdx].subs.splice(subIdx, 1); await updateFirebaseConfig(); pushNotify("Subcategory removed.");
+            const label = list[catIdx].subs[subIdx];
+            window.askForConfirmation(async () => {
+                list[catIdx].subs.splice(subIdx, 1); await updateFirebaseConfig();
+            }, 'type_subcategory', label);
         };
 
-        window.setPage = (p) => { state.page = p; state.viewingStudentId = null; state.searchQuery = ''; state.gradeFilter = 'All'; state.isSidebarOpen = false; render(); };
+        async function updateFirebaseConfig() {
+            if (!state.user) return;
+            const db = window.mantiqDb;
+            const appId = window.mantiqAppId;
+            const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+            await setDoc(configDoc, state.data.config);
+        }
 
+        // --- Notification ---
         function pushNotify(msg) {
             const container = document.getElementById('notification-container');
             if (!container) return;
@@ -373,72 +415,43 @@
             container.appendChild(toast); lucide.createIcons();
             setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 4000);
         }
-        window.pushNotify = pushNotify;
 
-        // --- Rendering ---
-        function renderStudentSummary(id) {
-            const student = state.data.students.find(s => s['Stu-ID'] === id);
-            if (!student) return `<p>Not Found</p>`;
-            const income = state.data.income.filter(i => i['Stu-ID'] === id);
-            const totalPaid = income.reduce((acc, curr) => acc + parseFloat(curr.Amount), 0);
+        // --- Render Functions ---
+
+        function renderConfirmationModal() {
+            const type = ut(state.deleteConfirmation.typeKey);
+            const label = state.deleteConfirmation.itemLabel;
+            const message = `${ut('confirmMsgPre')} ${type}: (${label}) ${ut('confirmMsgPost')}`;
 
             return `
-                <div class="fade-in space-y-8">
-                    <div class="flex items-center justify-between">
-                        <button onclick="window.setViewingStudent(null)" class="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase hover:text-mantiq-cyan transition-colors">
-                            <i data-lucide="arrow-left" size="16" class="${state.language === 'ar' ? 'rotate-180' : ''}"></i> ${ut('backToList')}
-                        </button>
-                        <h2 class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('studentProfile')}</h2>
-                    </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div class="bg-white dark:bg-slate-900 p-6 lg:p-10 rounded-[2rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] flex flex-col items-center">
-                            <div class="w-20 h-20 rounded-[1.5rem] bg-mantiq-navy text-white flex items-center justify-center font-black text-2xl mb-6 shadow-xl">${student['Student Name'].charAt(0)}</div>
-                            <h3 class="text-lg lg:text-xl font-black text-mantiq-navy dark:text-white mb-1 uppercase text-center">${student['Student Name']}</h3>
-                            <p class="text-[10px] font-black text-mantiq-cyan tracking-widest mb-10">${student['Stu-ID']}</p>
-                            <div class="w-full space-y-4 pt-8 border-t border-slate-100 dark:border-slate-800">
-                                ${Object.entries(student).filter(([k]) => k !== 'id').map(([k,v]) => `<div class="flex justify-between items-center"><span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${k}</span><span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-right ml-2">${v}</span></div>`).join('')}
-                            </div>
+                <div class="fixed inset-0 z-[120] flex items-center justify-center p-4 modal-overlay fade-in">
+                    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] p-8 lg:p-10 shadow-2xl dark:shadow-[0_20px_60px_rgba(0,0,0,0.6)] text-center">
+                        <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i data-lucide="alert-triangle" size="32"></i>
                         </div>
-                        <div class="lg:col-span-2 space-y-6">
-                            <div class="bg-emerald-50 dark:bg-emerald-950/20 p-6 lg:p-8 rounded-[1.5rem] border border-emerald-100 dark:border-none shadow-sm dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)]">
-                                <h4 class="text-emerald-600 text-[10px] font-black uppercase mb-2 tracking-widest">Financial Standing</h4>
-                                <p class="text-3xl lg:text-4xl font-black text-emerald-700 dark:text-emerald-300 tracking-tighter">${totalPaid.toLocaleString()} EGP</p>
-                            </div>
-                            <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-none p-6 lg:p-8 shadow-sm dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)]">
-                                <h4 class="text-sm font-black text-mantiq-navy dark:text-white uppercase mb-6 flex items-center gap-2"><i data-lucide="receipt" size="18"></i> History</h4>
-                                <div class="space-y-4">
-                                    ${income.length ? income.map(item => `<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl"><div><p class="text-xs font-bold">${item.Category} - ${item.Subcategory}</p><p class="text-[10px] text-slate-400 font-bold">${item.Date}</p></div><span class="text-sm font-black text-emerald-600 ml-2">+${parseFloat(item.Amount).toLocaleString()}</span></div>`).join('') : '<p class="text-center text-xs text-slate-400 py-10 italic">No payments recorded</p>'}
-                                </div>
-                            </div>
+                        <h2 class="text-xl lg:text-2xl font-black uppercase tracking-tighter mb-4 text-mantiq-navy dark:text-white">${ut('confirmTitle')}</h2>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed mb-8">${message}</p>
+                        <div class="flex flex-col gap-3">
+                            <button onclick="window.executeDelete()" class="w-full bg-rose-500 text-white py-4 rounded-xl font-black text-xs uppercase shadow-xl hover:bg-rose-600 transition-colors">${ut('confirmBtn')}</button>
+                            <button onclick="window.cancelDelete()" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-500 py-4 rounded-xl font-black text-xs uppercase">${ut('keepBtn')}</button>
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        window.setViewingStudent = (id) => { state.viewingStudentId = id; render(); };
-        window.closeModal = () => { state.isModalOpen = false; render(); };
-        window.openModal = () => { 
-            state.isModalOpen = true; 
-            render(); 
-            if (state.page === 'income') {
-                setTimeout(() => pushNotify(ut('searchableInfo')), 200);
-            }
-        };
-        window.toggleSidebar = () => { state.isSidebarOpen = !state.isSidebarOpen; render(); };
-        window.toggleDarkMode = () => { state.darkMode = !state.darkMode; document.documentElement.classList.toggle('dark'); render(); };
-        window.toggleLanguage = () => { state.language = state.language === 'en' ? 'ar' : 'en'; document.body.dir = state.language === 'ar' ? 'rtl' : 'ltr'; render(); };
-
         function renderDashboard() {
             const stats = getTotals();
             const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
             const todayLectures = state.data.subjects.filter(s => s.Day === todayName);
+            const curr = ut('currency');
+            
             return `
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Total Students</h3><p class="text-2xl font-black">${state.data.students.length}</p></div>
-                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Revenue</h3><p class="text-2xl font-black text-emerald-500">${stats.inc.toLocaleString()}</p></div>
-                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Expenses</h3><p class="text-2xl font-black text-rose-500">${stats.exp.toLocaleString()}</p></div>
-                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">Net Cash</h3><p class="text-2xl font-black text-mantiq-cyan">${stats.net.toLocaleString()}</p></div>
+                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">${state.language === 'en' ? 'Total Students' : 'إجمالي الطلاب'}</h3><p class="text-2xl font-black">${state.data.students.length}</p></div>
+                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">${state.language === 'en' ? 'Revenue' : 'الإيرادات'}</h3><p class="text-2xl font-black text-emerald-500">${stats.inc.toLocaleString()} ${curr}</p></div>
+                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">${state.language === 'en' ? 'Expenses' : 'المصاريف'}</h3><p class="text-2xl font-black text-rose-500">${stats.exp.toLocaleString()} ${curr}</p></div>
+                    <div class="bg-white dark:bg-slate-900 p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl"><h3 class="text-slate-400 text-[10px] font-black uppercase mb-2">${state.language === 'en' ? 'Net Cash' : 'صافي الربح'}</h3><p class="text-2xl font-black text-mantiq-cyan">${stats.net.toLocaleString()} ${curr}</p></div>
                 </div>
                 <div class="mb-12">
                     <h3 class="text-xl font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="calendar" class="text-mantiq-cyan"></i> ${ut('todaySchedule')}</h3>
@@ -455,29 +468,38 @@
 
         function renderCashFlow() {
             const totals = getTotals();
-            let all = [...state.data.income.map(x => ({ ...x, type: 'in', label: x['Student Name'] })), ...state.data.expenses.map(x => ({ ...x, type: 'out', label: x['Title'] }))].sort((a,b) => new Date(b.Date) - new Date(a.Date));
-            if (state.searchQuery) { const q = state.searchQuery.toLowerCase(); all = all.filter(item => item.label.toLowerCase().includes(q) || (item.Category && item.Category.toLowerCase().includes(q))); }
+            const curr = ut('currency');
+            let all = [
+                ...state.data.income.map(x => ({ ...x, type: 'in', label: x['Student Name'] })), 
+                ...state.data.expenses.map(x => ({ ...x, type: 'out', label: x['Title'] }))
+            ].sort((a,b) => new Date(b.Date) - new Date(a.Date));
+            
+            if (state.searchQuery) { 
+                const q = state.searchQuery.toLowerCase(); 
+                all = all.filter(item => item.label.toLowerCase().includes(q) || (item.Category && item.Category.toLowerCase().includes(q))); 
+            }
+            
             return `
                 <div class="fade-in space-y-8">
                     <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-6">
                         <h2 class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('netCash')}</h2>
                         <div class="flex gap-2">
-                             <button onclick='window.exportToExcel(${JSON.stringify(all)}, "CashFlow")' class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200"><i data-lucide="file-spreadsheet" size="16"></i> Excel</button>
-                             <button onclick='window.exportToPDF(${JSON.stringify(all)}, "CashFlow", ["type", "label", "Category", "Amount", "Date"])' class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200"><i data-lucide="file-text" size="16"></i> PDF</button>
+                             <button onclick='window.exportToExcel(${JSON.stringify(all)}, "CashFlow")' class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200"><i data-lucide="file-spreadsheet" size="16"></i> ${ut('exportExcel')}</button>
+                             <button onclick='window.exportToPDF(${JSON.stringify(all)}, "CashFlow", ["type", "label", "Category", "Amount", "Date"])' class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200"><i data-lucide="file-text" size="16"></i> ${ut('exportPDF')}</button>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-                        <div class="bg-emerald-50 dark:bg-emerald-950/20 p-6 rounded-[1.5rem] border border-emerald-100 dark:border-none shadow-sm dark:shadow-xl"><h4 class="text-emerald-600 text-[10px] font-black uppercase mb-1">${ut('inflow')}</h4><p class="text-2xl font-black text-emerald-700">${totals.inc.toLocaleString()} EGP</p></div>
-                        <div class="bg-rose-50 dark:bg-rose-950/20 p-6 rounded-[1.5rem] border border-rose-100 dark:border-none shadow-sm dark:shadow-xl"><h4 class="text-rose-600 text-[10px] font-black uppercase mb-1">${ut('outflow')}</h4><p class="text-2xl font-black text-rose-700">${totals.exp.toLocaleString()} EGP</p></div>
-                        <div class="bg-mantiq-navy dark:bg-slate-800 p-6 rounded-[1.5rem] shadow-xl"><h4 class="text-mantiq-cyan text-[10px] font-black uppercase mb-1">${ut('netCash')}</h4><p class="text-2xl font-black text-white">${totals.net.toLocaleString()} EGP</p></div>
+                        <div class="bg-emerald-50 dark:bg-emerald-950/20 p-6 rounded-[1.5rem] border border-emerald-100 dark:border-none shadow-sm dark:shadow-xl"><h4 class="text-emerald-600 text-[10px] font-black uppercase mb-1">${ut('inflow')}</h4><p class="text-2xl font-black text-emerald-700">${totals.inc.toLocaleString()} ${curr}</p></div>
+                        <div class="bg-rose-50 dark:bg-rose-950/20 p-6 rounded-[1.5rem] border border-rose-100 dark:border-none shadow-sm dark:shadow-xl"><h4 class="text-rose-600 text-[10px] font-black uppercase mb-1">${ut('outflow')}</h4><p class="text-2xl font-black text-rose-700">${totals.exp.toLocaleString()} ${curr}</p></div>
+                        <div class="bg-mantiq-navy dark:bg-slate-800 p-6 rounded-[1.5rem] shadow-xl"><h4 class="text-mantiq-cyan text-[10px] font-black uppercase mb-1">${ut('netCash')}</h4><p class="text-2xl font-black text-white">${totals.net.toLocaleString()} ${curr}</p></div>
                     </div>
                     <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-none p-4 lg:p-6 shadow-sm dark:shadow-2xl overflow-hidden">
                         <div class="mb-6"><div class="relative"><i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i><input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="window.handleSearch(this.value)" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none border-none" /></div></div>
                         <div class="overflow-x-auto custom-scrollbar">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-400"><tr><th class="px-6 py-6">Status</th><th class="px-6 py-6">Label</th><th class="px-6 py-6">Category</th><th class="px-6 py-6">Amount</th><th class="px-6 py-6">Date</th></tr></thead>
+                                <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-400"><tr><th class="px-6 py-6">${state.language === 'en' ? 'Type' : 'النوع'}</th><th class="px-6 py-6">${state.language === 'en' ? 'Label' : 'البيان'}</th><th class="px-6 py-6">${state.language === 'en' ? 'Category' : 'الفئة'}</th><th class="px-6 py-6">${state.language === 'en' ? 'Amount' : 'المبلغ'}</th><th class="px-6 py-6">${state.language === 'en' ? 'Date' : 'التاريخ'}</th></tr></thead>
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                    ${all.map(t => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors"><td class="px-6 py-6"><span class="px-3 py-1 rounded-lg text-[9px] font-black uppercase ${t.type==='in'?'bg-emerald-100 text-emerald-600':'bg-rose-100 text-rose-600'}">${t.type==='in'?'Inflow':'Outflow'}</span></td><td class="px-6 py-6 text-sm font-bold">${t.label}</td><td class="px-6 py-6 text-xs text-slate-500">${t.Category || '-'}</td><td class="px-6 py-6 font-black text-sm ${t.type==='in'?'text-emerald-600':'text-rose-600'}">${t.type==='in'?'+':'-'}${parseFloat(t.Amount).toLocaleString()}</td><td class="px-6 py-6 text-xs text-slate-400">${t.Date}</td></tr>`).join('')}
+                                    ${all.map(t => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors"><td class="px-6 py-6"><span class="px-3 py-1 rounded-lg text-[9px] font-black uppercase ${t.type==='in'?'bg-emerald-100 text-emerald-600':'bg-rose-100 text-rose-600'}">${t.type==='in'?(state.language === 'en' ? 'Inflow' : 'وارد'):(state.language === 'en' ? 'Outflow' : 'صادر')}</span></td><td class="px-6 py-6 text-sm font-bold">${t.label}</td><td class="px-6 py-6 text-xs text-slate-500">${t.Category || '-'}</td><td class="px-6 py-6 font-black text-sm ${t.type==='in'?'text-emerald-600':'text-rose-600'}">${t.type==='in'?'+':'-'}${parseFloat(t.Amount).toLocaleString()}</td><td class="px-6 py-6 text-xs text-slate-400">${t.Date}</td></tr>`).join('')}
                                 </tbody>
                             </table>
                         </div>
@@ -490,19 +512,16 @@
             return `
                 <div class="fade-in space-y-8 pb-20">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <!-- Teachers Section -->
                         <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl">
-                            <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="user-plus" class="text-mantiq-cyan"></i> Teachers</h3>
+                            <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="user-plus" class="text-mantiq-cyan"></i> ${state.language === 'en' ? 'Teachers' : 'المعلمون'}</h3>
                             <div class="flex gap-2 mb-6">
                                 <input id="config-teacher-input" type="text" placeholder="${ut('addTeacher')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
                                 <button onclick="window.addTeacher()" class="bg-mantiq-navy dark:bg-slate-700 text-white p-3 rounded-xl"><i data-lucide="plus"></i></button>
                             </div>
-                            <div class="space-y-3">${state.data.config.teachers.map((t, idx) => `<div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800/40 dark:border-none"><span class="text-sm font-bold">${t}</span><button onclick="window.deleteTeacher(${idx})" class="text-rose-400"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
+                            <div class="space-y-3">${state.data.config.teachers.map((t, idx) => `<div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800/40 dark:border-none"><span class="text-sm font-bold">${t}</span><button onclick="window.deleteTeacher(${idx})" class="text-rose-400 hover:text-rose-600 transition-colors"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
                         </div>
-
-                        <!-- Grades & Fees Section -->
                         <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl">
-                            <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="graduation-cap" class="text-mantiq-cyan"></i> Grades & Fees</h3>
+                            <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="graduation-cap" class="text-mantiq-cyan"></i> ${state.language === 'en' ? 'Grades & Fees' : 'المستويات والرسوم'}</h3>
                             <div class="space-y-3 mb-6">
                                 <input id="config-grade-name-input" type="text" placeholder="${ut('gradeName')}..." class="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm font-bold outline-none mb-2" />
                                 <div class="flex gap-2">
@@ -510,15 +529,13 @@
                                     <button onclick="window.addGrade()" class="bg-mantiq-navy dark:bg-slate-700 text-white px-6 rounded-xl font-black text-xs uppercase">${ut('addGrade')}</button>
                                 </div>
                             </div>
-                            <div class="space-y-3">${Object.entries(state.data.config.gradeFees).map(([grade, fee]) => `<div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800/40 dark:border-none"><div><p class="text-sm font-black">${grade}</p><p class="text-[10px] text-mantiq-cyan font-bold uppercase">${fee.toLocaleString()} EGP</p></div><button onclick="window.deleteGrade('${grade}')" class="text-rose-400"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
+                            <div class="space-y-3">${Object.entries(state.data.config.gradeFees).map(([grade, fee]) => `<div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800/40 dark:border-none"><div><p class="text-sm font-black">${grade}</p><p class="text-[10px] text-mantiq-cyan font-bold uppercase">${fee.toLocaleString()} ${ut('currency')}</p></div><button onclick="window.deleteGrade('${grade}')" class="text-rose-400 hover:text-rose-600 transition-colors"><i data-lucide="trash-2" size="16"></i></button></div>`).join('')}</div>
                         </div>
                     </div>
-
-                    <!-- Financial Categories Management -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         ${['income', 'expense'].map(type => `
                             <div class="bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl">
-                                <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="layers" class="${type==='income'?'text-emerald-500':'text-rose-500'}"></i> ${type.charAt(0).toUpperCase()+type.slice(1)} Categories</h3>
+                                <h3 class="text-lg font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="layers" class="${type==='income'?'text-emerald-500':'text-rose-500'}"></i> ${type === 'income' ? (state.language === 'en' ? 'Income Categories' : 'فئات الإيرادات') : (state.language === 'en' ? 'Expense Categories' : 'فئات المصاريف')}</h3>
                                 <div class="flex gap-2 mb-6">
                                     <input id="config-${type}-cat-input" type="text" placeholder="${ut('addCategory')}..." class="flex-1 bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
                                     <button onclick="window.addCategory('${type}')" class="bg-mantiq-navy dark:bg-slate-700 text-white p-3 rounded-xl"><i data-lucide="plus"></i></button>
@@ -526,7 +543,7 @@
                                 <div class="space-y-4">
                                     ${(type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories).map((cat, cIdx) => `
                                         <div class="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-none shadow-sm">
-                                            <div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="window.deleteCategory('${type}', ${cIdx})" class="text-rose-400 hover:text-rose-600"><i data-lucide="x" size="14"></i></button></div>
+                                            <div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase">${cat.name}</span><button onclick="window.deleteCategory('${type}', ${cIdx})" class="text-rose-400 hover:text-rose-600 transition-colors"><i data-lucide="x" size="14"></i></button></div>
                                             <div class="flex flex-wrap gap-2 mb-3">
                                                 ${cat.subs.map((s, sIdx) => `
                                                     <span class="bg-white dark:bg-slate-700 px-2 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1 shadow-sm">
@@ -548,34 +565,38 @@
             `;
         }
 
-        window.handleSearch = (val) => { state.searchQuery = val; render(); };
-        window.handleGradeFilter = (val) => { state.gradeFilter = val; render(); };
-
         function renderTable() {
             const nav = ACADEMY_NAV.find(n => n.id === state.page);
             let rawData = state.data[state.page] || [];
-            if (state.searchQuery) { const q = state.searchQuery.toLowerCase(); rawData = rawData.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(q))); }
-            if (state.gradeFilter !== 'All' && ['students', 'subjects', 'income'].includes(state.page)) { rawData = rawData.filter(row => row.Grade === state.gradeFilter); }
+            if (state.searchQuery) { 
+                const q = state.searchQuery.toLowerCase(); 
+                rawData = rawData.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(q))); 
+            }
+            if (state.gradeFilter !== 'All' && ['students', 'subjects', 'income'].includes(state.page)) rawData = rawData.filter(row => row.Grade === state.gradeFilter);
             
             return `
                 <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-6 mb-10">
                     <div><h2 class="text-2xl font-black uppercase tracking-tighter">${_t(nav.label.en, nav.label.ar)}</h2><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">${rawData.length} Results</p></div>
                     <div class="flex flex-wrap gap-2">
-                        <button onclick='window.exportToExcel(${JSON.stringify(rawData)}, "${nav.id}")' class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2"><i data-lucide="file-spreadsheet" size="16"></i> Excel</button>
-                        <button onclick='window.exportToPDF(${JSON.stringify(rawData)}, "${nav.id}", ${JSON.stringify(nav.tableCols.en)})' class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2"><i data-lucide="file-text" size="16"></i> PDF</button>
+                        <button onclick='window.exportToExcel(${JSON.stringify(rawData)}, "${nav.id}")' class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2"><i data-lucide="file-spreadsheet" size="16"></i> ${ut('exportExcel')}</button>
+                        <button onclick='window.exportToPDF(${JSON.stringify(rawData)}, "${nav.id}", ${JSON.stringify(nav.tableCols.en)})' class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2"><i data-lucide="file-text" size="16"></i> ${ut('exportPDF')}</button>
                         <button onclick="window.openModal()" class="bg-mantiq-navy dark:bg-slate-700 text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase shadow-xl hover:scale-105 transition-transform flex-1 lg:flex-none">${ut('addRecord')}</button>
                     </div>
                 </div>
                 <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-xl mb-8 flex flex-col sm:flex-row gap-4 items-center">
                     <div class="w-full flex-1 relative"><i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i><input type="text" placeholder="${ut('searchPlaceholder')}" value="${state.searchQuery}" oninput="window.handleSearch(this.value)" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none border-none" /></div>
-                    ${['students', 'subjects', 'income'].includes(state.page) ? `<div class="w-full sm:w-auto flex items-center gap-3 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl"><span class="text-[10px] font-black uppercase text-slate-400">Filter</span><select onchange="window.handleGradeFilter(this.value)" class="bg-transparent border-none text-xs font-bold outline-none"><option value="All">${ut('filterAll')}</option>${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}" ${state.gradeFilter === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div>` : ''}
+                    ${['students', 'subjects', 'income'].includes(state.page) ? `<div class="w-full sm:w-auto flex items-center gap-3 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl"><span class="text-[10px] font-black uppercase text-slate-400">${state.language === 'en' ? 'Filter' : 'تصفية'}</span><select onchange="window.handleGradeFilter(this.value)" class="bg-transparent border-none text-xs font-bold outline-none"><option value="All">${ut('filterAll')}</option>${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}" ${state.gradeFilter === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div>` : ''}
                 </div>
                 <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-none overflow-hidden shadow-sm dark:shadow-2xl">
                     <div class="overflow-x-auto custom-scrollbar">
                         <table class="w-full text-left border-collapse">
                             <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase tracking-widest font-black text-slate-400"><tr>${nav.tableCols.en.map((c, i) => `<th class="px-6 py-6 whitespace-nowrap">${_t(c, nav.tableCols.ar[i])}</th>`).join('')}<th class="px-6 py-6 text-center whitespace-nowrap">${ut('action')}</th></tr></thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                ${rawData.length ? rawData.map(row => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">${nav.tableCols.en.map(k => `<td class="px-6 py-5 font-bold text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">${row[k] || '-'}</td>`).join('')}<td class="px-6 py-5 text-center flex justify-center gap-2">${state.page === 'students' ? `<button onclick="window.setViewingStudent('${row['Stu-ID']}')" class="p-2 text-mantiq-cyan hover:bg-mantiq-cyan/10 rounded-xl transition-all"><i data-lucide="user" size="18"></i></button>` : ''}<button onclick="window.deleteEntry('${row.id}')" class="p-2 text-slate-300 hover:text-rose-500 transition-all"><i data-lucide="trash-2" size="18"></i></button></td></tr>`).join('') : `<tr><td colspan="10" class="p-20 text-center italic text-slate-400 font-bold uppercase">${ut('empty')}</td></tr>`}
+                                ${rawData.length ? rawData.map(row => {
+                                    const labelRaw = row['Student Name'] || row['Title'] || row['Subject Name'] || row.id || "";
+                                    const labelEscaped = String(labelRaw).replace(/'/g, "\\'");
+                                    return `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">${nav.tableCols.en.map(k => `<td class="px-6 py-5 font-bold text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">${row[k] || '-'}</td>`).join('')}<td class="px-6 py-5 text-center flex justify-center gap-2">${state.page === 'students' ? `<button onclick="window.setViewingStudent('${row['Stu-ID']}')" class="p-2 text-mantiq-cyan hover:bg-mantiq-cyan/10 rounded-xl transition-all"><i data-lucide="user" size="18"></i></button>` : ''}<button onclick="window.deleteEntry('${row.id}', '${labelEscaped}')" class="p-2 text-slate-300 hover:text-rose-500 transition-all"><i data-lucide="trash-2" size="18"></i></button></td></tr>`;
+                                }).join('') : `<tr><td colspan="10" class="p-20 text-center italic text-slate-400 font-bold uppercase">${ut('empty')}</td></tr>`}
                             </tbody>
                         </table>
                     </div>
@@ -583,11 +604,46 @@
             `;
         }
 
-        window.deleteEntry = async (id) => {
-            if (!state.user) return;
-            const db = window.mantiqDb; const appId = window.mantiqAppId;
-            try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.page, id)); pushNotify("Entry deleted."); } catch (err) { console.error(err); }
-        };
+        function renderStudentSummary(id) {
+            const student = state.data.students.find(s => s['Stu-ID'] === id);
+            if (!student) return `<p>Not Found</p>`;
+            const income = state.data.income.filter(i => i['Stu-ID'] === id);
+            const totalPaid = income.reduce((acc, curr) => acc + parseFloat(curr.Amount), 0);
+            const currSymbol = ut('currency');
+
+            return `
+                <div class="fade-in space-y-8">
+                    <div class="flex items-center justify-between">
+                        <button onclick="window.setViewingStudent(null)" class="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase hover:text-mantiq-cyan transition-colors">
+                            <i data-lucide="arrow-left" size="16" class="${state.language === 'ar' ? 'rotate-180' : ''}"></i> ${ut('backToList')}
+                        </button>
+                        <h2 class="text-2xl lg:text-3xl font-black text-mantiq-navy dark:text-white uppercase tracking-tighter">${ut('studentProfile')}</h2>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="bg-white dark:bg-slate-900 p-6 lg:p-10 rounded-[2rem] border border-slate-200 dark:border-none shadow-sm dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] flex flex-col items-center">
+                            <div class="w-20 h-20 rounded-[1.5rem] bg-mantiq-navy text-white flex items-center justify-center font-black text-2xl mb-6 shadow-xl">${student['Student Name']?.charAt(0) || 'S'}</div>
+                            <h3 class="text-lg lg:text-xl font-black text-mantiq-navy dark:text-white mb-1 uppercase text-center">${student['Student Name']}</h3>
+                            <p class="text-[10px] font-black text-mantiq-cyan tracking-widest mb-10">${student['Stu-ID']}</p>
+                            <div class="w-full space-y-4 pt-8 border-t border-slate-100 dark:border-slate-800">
+                                ${Object.entries(student).filter(([k]) => k !== 'id').map(([k,v]) => `<div class="flex justify-between items-center"><span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${k}</span><span class="text-xs font-bold text-slate-700 dark:text-slate-200 text-right ml-2">${v}</span></div>`).join('')}
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-emerald-50 dark:bg-emerald-950/20 p-6 lg:p-8 rounded-[1.5rem] border border-emerald-100 dark:border-none shadow-sm dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)]">
+                                <h4 class="text-emerald-600 text-[10px] font-black uppercase mb-2 tracking-widest">${state.language === 'en' ? 'Financial Standing' : 'الحالة المالية'}</h4>
+                                <p class="text-3xl lg:text-4xl font-black text-emerald-700 dark:text-emerald-300 tracking-tighter">${totalPaid.toLocaleString()} ${currSymbol}</p>
+                            </div>
+                            <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-none p-6 lg:p-8 shadow-sm dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)]">
+                                <h4 class="text-sm font-black text-mantiq-navy dark:text-white uppercase mb-6 flex items-center gap-2"><i data-lucide="receipt" size="18"></i> ${state.language === 'en' ? 'History' : 'السجل'}</h4>
+                                <div class="space-y-4">
+                                    ${income.length ? income.map(item => `<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl"><div><p class="text-xs font-bold">${item.Category} - ${item.Subcategory}</p><p class="text-[10px] text-slate-400 font-bold">${item.Date}</p></div><span class="text-sm font-black text-emerald-600 ml-2">+${parseFloat(item.Amount).toLocaleString()}</span></div>`).join('') : '<p class="text-center text-xs text-slate-400 py-10 italic">No payments recorded</p>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
         function renderApp() {
             const navItems = ACADEMY_NAV.map(item => `<button onclick="window.setPage('${item.id}')" class="w-full flex items-center gap-4 px-6 py-4 rounded-xl lg:rounded-2xl text-sm font-bold transition-all ${state.page === item.id ? 'bg-mantiq-cyan text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400'}"><i data-lucide="${item.icon}" size="18"></i><span class="truncate">${_t(item.label.en, item.label.ar)}</span></button>`).join('');
@@ -613,6 +669,7 @@
                     </div>
                 </div>
                 ${state.isModalOpen ? renderModal() : ''}
+                ${state.deleteConfirmation ? renderConfirmationModal() : ''}
             `;
         }
 
@@ -631,13 +688,12 @@
                 if (state.page === 'income' && col === 'Student Name') {
                     return `<div class="flex flex-col gap-1">
                         <label class="text-[9px] font-black uppercase text-slate-400">${label}</label>
-                        <input type="text" list="student-names-list" name="${col}" oninput="window.updateIncomeStuId(this.value)" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold" placeholder="Search or type name..." required />
+                        <input type="text" list="student-names-list" name="${col}" oninput="window.updateIncomeStuId(this.value)" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold" placeholder="${state.language === 'en' ? 'Search or type name...' : 'ابحث أو اكتب الاسم...'}" required />
                         <datalist id="student-names-list">
                             ${state.data.students.map(s => `<option value="${s['Student Name']}">${s['Stu-ID']}</option>`).join('')}
                         </datalist>
                     </div>`;
                 }
-
                 return `<div class="flex flex-col gap-1"><label class="text-[9px] font-black uppercase text-slate-400">${label}</label><input type="${col.includes('Date') ? 'date' : (col.includes('Amount') ? 'number' : 'text')}" name="${col}" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold" required /></div>`;
             }).join('');
 
@@ -663,27 +719,22 @@
             const form = document.getElementById('add-record-form');
             const formData = new FormData(form);
             const record = {}; formData.forEach((v, k) => record[k] = v);
-            
             if (state.page === 'income' && record['Student Name']) {
                 const s = state.data.students.find(s => s['Student Name'] === record['Student Name']);
                 if (s) { record['Stu-ID'] = s['Stu-ID']; record['Grade'] = s['Grade']; }
             }
-            
-            if (state.page === 'students' && !record['Stu-ID']) {
-                record['Stu-ID'] = generateID('STU-', state.data.students);
-            }
-            if (state.page === 'expenses' && !record['Expense ID']) {
-                record['Expense ID'] = generateID('EXP-', state.data.expenses);
-            }
+            if (state.page === 'students' && !record['Stu-ID']) record['Stu-ID'] = generateID('STU-', state.data.students);
+            if (state.page === 'expenses' && !record['Expense ID']) record['Expense ID'] = generateID('EXP-', state.data.expenses);
 
             state.loading = true; render();
-            try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.page), record); pushNotify("Success!"); state.isModalOpen = false; } catch (err) { pushNotify("Error: " + err.message); }
+            try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.page), record); state.isModalOpen = false; } catch (err) { pushNotify("Error: " + err.message); }
             state.loading = false; render();
         };
 
         function render() { const root = document.getElementById('app'); if (root) { root.innerHTML = renderApp(); lucide.createIcons(); } }
-
-        window.initAuth(); render();
+        
+        window.initAuth(); 
+        render();
     </script>
 </body>
 </html>

@@ -129,7 +129,8 @@
                 attLecture: "Lecture", attNote: "Note (If absent)", teachersMgmt: "Teachers Management",
                 teacherTimeline: "Timeline & Schedule", teacherHistory: "Attendance History",
                 cash_flow: "Cash Flow", cf_type: "Filter by Type", cf_cat: "Filter by Category",
-                type_all: "All Types", type_inflow: "Inflow", type_outflow: "Outflow"
+                type_all: "All Types", type_inflow: "Inflow", type_outflow: "Outflow",
+                securityAlert: "Security Alert: Source inspection is disabled for security reasons."
             },
             ar: {
                 dashboard: "نظرة عامة", volume: "إجمالي الإيرادات", assets: "عدد الطلاب",
@@ -157,7 +158,8 @@
                 teacherTimeline: "الجدول الزمني والمواد", teacherHistory: "سجل الحضور والغياب",
                 cash_flow: "التدفق المالي", cash_flow_title: "كشف التدفق المالي",
                 cf_type: "تصفية بالنوع", cf_cat: "تصفية بالفئة",
-                type_all: "الكل", type_inflow: "وارد", type_outflow: "صادر"
+                type_all: "الكل", type_inflow: "وارد", type_outflow: "صادر",
+                securityAlert: "تنبيه أمني: فحص المصدر معطل لأسباب أمنية."
             }
         };
 
@@ -212,6 +214,28 @@
         const _t = (en, ar) => state.language === 'en' ? en : ar;
         const ut = (key) => UI[state.language][key] || key;
 
+        // --- نظام الحماية (Security Management) ---
+        const initSecurity = () => {
+            // Disable Right Click
+            document.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                pushNotify(ut('securityAlert'));
+            });
+
+            // Disable Common DevTools Shortcuts
+            document.addEventListener('keydown', (e) => {
+                const isF12 = e.key === 'F12';
+                const isInspect = e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C');
+                const isViewSource = e.ctrlKey && (e.key === 'u' || e.key === 'U');
+                
+                if (isF12 || isInspect || isViewSource) {
+                    e.preventDefault();
+                    pushNotify(ut('securityAlert'));
+                    return false;
+                }
+            });
+        };
+
         // --- Helpers ---
         function getTotals() {
             const inc = state.data.income.reduce((s, i) => s + (parseFloat(i.Amount) || 0), 0);
@@ -233,8 +257,8 @@
             const container = document.getElementById('notification-container');
             if (!container) return;
             const toast = document.createElement('div');
-            toast.className = 'bg-mantiq-navy dark:bg-slate-800 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 fade-in border-l-4 border-mantiq-cyan transition-all';
-            toast.innerHTML = `<i data-lucide="info" class="text-mantiq-cyan w-5 h-5"></i><span class="text-xs font-bold">${msg}</span>`;
+            toast.className = 'bg-mantiq-navy dark:bg-slate-800 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 fade-in border-l-4 border-rose-500 transition-all';
+            toast.innerHTML = `<i data-lucide="shield-alert" class="text-rose-500 w-5 h-5"></i><span class="text-xs font-bold">${msg}</span>`;
             container.appendChild(toast); lucide.createIcons();
             setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 4000);
         }
@@ -550,19 +574,14 @@
         }
 
         function renderAttendance() {
-            // Get day name from selected date
             const dayName = new Date(state.attDate).toLocaleDateString('en-US', { weekday: 'long' });
-            
-            // Get subjects occurring on this day
             const subjectsToday = state.data.subjects.filter(s => s.Day === dayName);
             
             let list = [];
             if (state.attType === 'Students') {
-                // Show students whose grade has a lecture today
                 const gradesToday = [...new Set(subjectsToday.map(s => s.Grade))];
                 list = state.data.students.filter(stu => gradesToday.includes(stu.Grade));
             } else {
-                // Show teachers who have a lecture today
                 const teachersToday = [...new Set(subjectsToday.map(s => s['Teacher Name']))];
                 list = state.data.config.teachers.filter(t => teachersToday.includes(t));
             }
@@ -844,6 +863,7 @@
         }
 
         // Start App
+        initSecurity();
         window.initAuth();
         render();
     </script>

@@ -127,7 +127,9 @@
                 attPresent: "Present", attAbsent: "Absent", attSave: "Save Records",
                 attStudents: "Students", attTeachers: "Teachers", attSuccess: "Attendance saved successfully.",
                 attLecture: "Lecture", attNote: "Note (If absent)", teachersMgmt: "Teachers Management",
-                teacherTimeline: "Timeline & Schedule", teacherHistory: "Attendance History"
+                teacherTimeline: "Timeline & Schedule", teacherHistory: "Attendance History",
+                cash_flow: "Cash Flow", cf_type: "Filter by Type", cf_cat: "Filter by Category",
+                type_all: "All Types", type_inflow: "Inflow", type_outflow: "Outflow"
             },
             ar: {
                 dashboard: "نظرة عامة", volume: "إجمالي الإيرادات", assets: "عدد الطلاب",
@@ -152,7 +154,9 @@
                 attPresent: "حاضر", attAbsent: "غائب", attSave: "حفظ السجلات",
                 attStudents: "الطلاب", attTeachers: "المعلمون", attSuccess: "تم حفظ كشف الحضور بنجاح.",
                 attLecture: "المحاضرة", attNote: "ملاحظة (في حال الغياب)", teachersMgmt: "إدارة المعلمين",
-                teacherTimeline: "الجدول الزمني والمواد", teacherHistory: "سجل الحضور والغياب"
+                teacherTimeline: "الجدول الزمني والمواد", teacherHistory: "سجل الحضور والغياب",
+                cash_flow: "التدفق المالي", cf_type: "تصفية بالنوع", cf_cat: "تصفية بالفئة",
+                type_all: "الكل", type_inflow: "وارد", type_outflow: "صادر"
             }
         };
 
@@ -180,6 +184,8 @@
             viewingTeacherName: null,
             searchQuery: '',
             gradeFilter: 'All',
+            cfTypeFilter: 'All',
+            cfCatFilter: 'All',
             attDate: new Date().toISOString().split('T')[0],
             attType: 'Students',
             attLecture: 'General',
@@ -203,7 +209,7 @@
         };
 
         const _t = (en, ar) => state.language === 'en' ? en : ar;
-        const ut = (key) => UI[state.language][key];
+        const ut = (key) => UI[state.language][key] || key;
 
         // --- Helpers ---
         function getTotals() {
@@ -238,12 +244,17 @@
             state.viewingStudentId = null; 
             state.viewingTeacherName = null;
             state.searchQuery = ''; 
+            state.gradeFilter = 'All';
+            state.cfTypeFilter = 'All';
+            state.cfCatFilter = 'All';
             state.isSidebarOpen = false;
             state.tempAttendance = {};
             render(); 
         };
         window.handleSearch = (val) => { state.searchQuery = val; render(); };
         window.handleGradeFilter = (val) => { state.gradeFilter = val; render(); };
+        window.handleCFTypeFilter = (val) => { state.cfTypeFilter = val; render(); };
+        window.handleCFCatFilter = (val) => { state.cfCatFilter = val; render(); };
         window.toggleSidebar = () => { state.isSidebarOpen = !state.isSidebarOpen; render(); };
         window.toggleDarkMode = () => { state.darkMode = !state.darkMode; document.documentElement.classList.toggle('dark'); render(); };
         window.toggleLanguage = () => { 
@@ -350,27 +361,7 @@
             }, 'type_subcategory', label);
         };
 
-        // --- Export Functions ---
-        window.exportToExcel = (data, fileName) => {
-            if (!data || data.length === 0) return pushNotify("No data to export");
-            const cleanData = data.map(item => { const { id, ...rest } = item; return rest; });
-            const ws = XLSX.utils.json_to_sheet(cleanData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Data");
-            XLSX.writeFile(wb, `${fileName}.xlsx`);
-        };
-
-        window.exportToPDF = (data, fileName, columns) => {
-            if (!data || data.length === 0) return pushNotify("No data to export");
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('l', 'mm', 'a4');
-            doc.setFontSize(18); doc.text(fileName, 14, 22);
-            const tableRows = data.map(item => columns.map(col => item[col] || '-'));
-            doc.autoTable({ head: [columns], body: tableRows, startY: 30, theme: 'striped', headStyles: { fillColor: [0, 30, 60] } });
-            doc.save(`${fileName}.pdf`);
-        };
-
-        // --- Main Render Components ---
+        // --- Page Components ---
 
         function renderDashboard() {
             const totals = getTotals();
@@ -392,17 +383,73 @@
 
         function renderCashFlow() {
             const totals = getTotals();
-            let all = [...state.data.income.map(i => ({...i, type: 'Inflow', label: i['Student Name']})),
-                       ...state.data.expenses.map(e => ({...e, type: 'Outflow', label: e['Title']}))]
-                       .sort((a,b) => new Date(b.Date) - new Date(a.Date));
+            let all = [
+                ...state.data.income.map(i => ({...i, type: 'Inflow', label: i['Student Name']})),
+                ...state.data.expenses.map(e => ({...e, type: 'Outflow', label: e['Title']}))
+            ].sort((a,b) => new Date(b.Date) - new Date(a.Date));
+
+            // Populate unique categories
+            const uniqueCats = [...new Set([...state.data.config.incomeCategories.map(c => c.name), ...state.data.config.expenseCategories.map(c => c.name)])];
+
+            // Apply Filters
             if (state.searchQuery) {
                 const q = state.searchQuery.toLowerCase();
                 all = all.filter(x => x.label.toLowerCase().includes(q) || x.Category?.toLowerCase().includes(q));
             }
+            if (state.cfTypeFilter !== 'All') {
+                all = all.filter(x => x.type === state.cfTypeFilter);
+            }
+            if (state.cfCatFilter !== 'All') {
+                all = all.filter(x => x.Category === state.cfCatFilter);
+            }
+
             return `
                 <div class="fade-in space-y-8">
-                    <div class="flex flex-col lg:flex-row justify-between items-center gap-6"><h2 class="text-3xl font-black uppercase tracking-tighter">${ut('cash_flow')}</h2><div class="flex gap-2"><button onclick='window.exportToExcel(${JSON.stringify(all)}, "CashFlow")' class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200"><i data-lucide="file-spreadsheet" size="16"></i> ${ut('exportExcel')}</button><button onclick='window.exportToPDF(${JSON.stringify(all)}, "CashFlow", ["type", "label", "Category", "Amount", "Date"])' class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200"><i data-lucide="file-text" size="16"></i> ${ut('exportPDF')}</button></div></div>
-                    <div class="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-none p-6 shadow-sm overflow-hidden"><div class="mb-6"><div class="relative"><i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i><input type="text" placeholder="${ut('searchPlaceholder')}" oninput="window.handleSearch(this.value)" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none" /></div></div><div class="overflow-x-auto custom-scrollbar"><table class="w-full text-left"><thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-400"><tr><th class="px-6 py-4">Type</th><th class="px-6 py-4">Label</th><th class="px-6 py-4">Category</th><th class="px-6 py-4">Amount</th><th class="px-6 py-4">Date</th></tr></thead><tbody class="divide-y divide-slate-100 dark:divide-slate-800">${all.map(t => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20"><td class="px-6 py-5"><span class="px-3 py-1 rounded text-[8px] font-black uppercase ${t.type==='Inflow'?'bg-emerald-50 text-emerald-600':'bg-rose-50 text-rose-600'}">${t.type}</span></td><td class="px-6 py-5 font-bold text-sm">${t.label}</td><td class="px-6 py-5 text-xs text-slate-500">${t.Category||'-'}</td><td class="px-6 py-5 font-black text-sm ${t.type==='Inflow'?'text-emerald-600':'text-rose-600'}">${t.Amount}</td><td class="px-6 py-5 text-xs text-slate-400">${t.Date}</td></tr>`).join('')}</tbody></table></div></div>
+                    <div class="flex flex-col lg:flex-row justify-between items-center gap-6">
+                        <h2 class="text-3xl font-black uppercase tracking-tighter">${ut('cash_flow')}</h2>
+                        <div class="flex gap-2">
+                             <button onclick='window.exportToExcel(${JSON.stringify(all)}, "CashFlow")' class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200"><i data-lucide="file-spreadsheet" size="16"></i> ${ut('exportExcel')}</button>
+                             <button onclick='window.exportToPDF(${JSON.stringify(all)}, "CashFlow", ["type", "label", "Category", "Amount", "Date"])' class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200"><i data-lucide="file-text" size="16"></i> ${ut('exportPDF')}</button>
+                        </div>
+                    </div>
+
+                    <!-- Filter Bar -->
+                    <div class="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-none p-4 flex flex-col sm:flex-row gap-4 items-center">
+                        <div class="flex-1 w-full relative">
+                            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+                            <input type="text" placeholder="${ut('searchPlaceholder')}" oninput="window.handleSearch(this.value)" value="${state.searchQuery}" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none" />
+                        </div>
+                        <div class="w-full sm:w-auto flex flex-wrap gap-2">
+                            <div class="flex flex-col">
+                                <label class="text-[8px] font-black uppercase text-slate-400 mb-1 ml-2">${ut('cf_type')}</label>
+                                <select onchange="window.handleCFTypeFilter(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl text-xs font-bold outline-none">
+                                    <option value="All" ${state.cfTypeFilter==='All'?'selected':''}>${ut('type_all')}</option>
+                                    <option value="Inflow" ${state.cfTypeFilter==='Inflow'?'selected':''}>${ut('type_inflow')}</option>
+                                    <option value="Outflow" ${state.cfTypeFilter==='Outflow'?'selected':''}>${ut('type_outflow')}</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col">
+                                <label class="text-[8px] font-black uppercase text-slate-400 mb-1 ml-2">${ut('cf_cat')}</label>
+                                <select onchange="window.handleCFCatFilter(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl text-xs font-bold outline-none">
+                                    <option value="All" ${state.cfCatFilter==='All'?'selected':''}>${ut('type_all')}</option>
+                                    ${uniqueCats.map(c => `<option value="${c}" ${state.cfCatFilter===c?'selected':''}>${c}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-none p-6 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto custom-scrollbar">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-400">
+                                    <tr><th class="px-6 py-4">Type</th><th class="px-6 py-4">Label</th><th class="px-6 py-4">Category</th><th class="px-6 py-4">Amount</th><th class="px-6 py-4">Date</th></tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    ${all.map(t => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20"><td class="px-6 py-5"><span class="px-3 py-1 rounded text-[8px] font-black uppercase ${t.type==='Inflow'?'bg-emerald-50 text-emerald-600':'bg-rose-50 text-rose-600'}">${t.type}</span></td><td class="px-6 py-5 font-bold text-sm">${t.label}</td><td class="px-6 py-5 text-xs text-slate-500">${t.Category||'-'}</td><td class="px-6 py-5 font-black text-sm ${t.type==='Inflow'?'text-emerald-600':'text-rose-600'}">${t.Amount}</td><td class="px-6 py-5 text-xs text-slate-400">${t.Date}</td></tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             `;
         }
@@ -500,6 +547,10 @@
                 const label = _t(c, nav.tableCols.ar[i]);
                 if (c==='Teacher Name') return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">Teacher</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${state.data.config.teachers.map(t => `<option value="${t}">${t}</option>`).join('')}</select></div>`;
                 if (c==='Grade') return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">Grade</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}">${g}</option>`).join('')}</select></div>`;
+                if (c==='Category') {
+                    const list = state.page === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
+                    return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">Category</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${list.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}</select></div>`;
+                }
                 return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><input name="${c}" type="${c.includes('Date')?'date':(c==='Amount'?'number':'text')}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm" required /></div>`;
             }).join('');
             return `

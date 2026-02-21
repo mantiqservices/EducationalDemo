@@ -1,0 +1,1045 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { 
+  LayoutDashboard, Users, UserCog, ClipboardCheck, 
+  CalendarClock, TrendingUp, TrendingDown, ArrowLeftRight, 
+  Settings2, Search, Plus, Trash2, FileSpreadsheet, 
+  FileText, Moon, Sun, Menu, X, GraduationCap, 
+  ChevronRight, ChevronLeft, ShieldAlert, Clock, 
+  History, User, AlertTriangle, PlusCircle, Layers, XCircle
+} from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, signInWithCustomToken, signInAnonymously, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { 
+  getFirestore, doc, setDoc, collection, 
+  onSnapshot, addDoc, deleteDoc, query 
+} from 'firebase/firestore';
+
+// --- Firebase Configuration ---
+const externalConfig = {
+    apiKey: "AIzaSyACmad2fQGzF_L1B7WXRYQGqbRx_hKQ2ns",
+    authDomain: "mantiqedu.firebaseapp.com",
+    projectId: "mantiqedu",
+    storageBucket: "mantiqedu.firebasestorage.app",
+    messagingSenderId: "226946538055",
+    appId: "1:226946538055:web:f31e5a7f80662366e02f62",
+    measurementId: "G-BFGV0W27QJ"
+};
+
+const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) 
+    ? JSON.parse(__firebase_config) 
+    : externalConfig;
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'mantiq-edu-prod';
+
+// --- UI Constants ---
+const UI_STRINGS = {
+  en: {
+    dashboard: "Academy Overview", volume: "Total Revenue", assets: "Students",
+    addRecord: "Add Entry", cancel: "Cancel", role: "Super Administrator",
+    submit: "Save & Sync", studentProfile: "Student Summary", backToList: "Back to List",
+    netCash: "Net Cash Flow", inflow: "Total Inflow", outflow: "Total Outflow",
+    restricted: "Action Restricted.", searchPlaceholder: "Search records...",
+    filterAll: "All Grades", addTeacher: "Add Teacher", addCategory: "Add Category",
+    addSub: "Add Sub", addGrade: "Add Grade", gradeName: "Grade Name",
+    gradeFee: "Base Fee", todaySchedule: "Today's Schedule",
+    noLectures: "No lectures scheduled for today.", empty: "No records found.", action: "Action",
+    online: "Connected", offline: "Offline", exportExcel: "Excel", exportPDF: "PDF",
+    confirmTitle: "Delete Confirmation",
+    confirmMsgPre: "Are you sure you want to delete",
+    confirmMsgPost: "? This action cannot be undone.",
+    confirmBtn: "Yes, Delete",
+    keepBtn: "No, Keep it",
+    type_teacher: "Teacher", type_grade: "Grade", type_category: "Category", type_subcategory: "Subcategory", type_entry: "Entry",
+    currency: "EGP",
+    attendance: "Attendance", attDate: "Date", attType: "Category",
+    attPresent: "Present", attAbsent: "Absent", attSave: "Save Records",
+    attStudents: "Students", attTeachers: "Teachers", attSuccess: "Attendance saved successfully.",
+    attLecture: "Lecture", attNote: "Note (If absent)", teachersMgmt: "Teachers Management",
+    teacherTimeline: "Timeline & Schedule", teacherHistory: "Attendance History",
+    cash_flow: "Cash Flow", cf_type: "Filter by Type", cf_cat: "Filter by Category",
+    type_all: "All Types", type_inflow: "Inflow", type_outflow: "Outflow",
+    securityAlert: "Security Alert: Source inspection is disabled for security reasons."
+  },
+  ar: {
+    dashboard: "نظرة عامة", volume: "إجمالي الإيرادات", assets: "عدد الطلاب",
+    addRecord: "إضافة سجل", cancel: "إلغاء", role: "مدير النظام",
+    submit: "حفظ ومزامنة", studentProfile: "ملخص الطالب", backToList: "العودة للقائمة",
+    netCash: "صافي الربح", inflow: "إجمالي الوارد", outflow: "إجمالي الصادر",
+    restricted: "إجراء مقيد.", searchPlaceholder: "بحث في السجلات...",
+    filterAll: "كل المستويات", addTeacher: "إضافة معلم", addCategory: "إضافة تصنيف",
+    addSub: "إضافة فرعي", addGrade: "إضافة مستوى", gradeName: "اسم المستوى",
+    gradeFee: "الرسوم الأساسية", todaySchedule: "محاضرات اليوم",
+    noLectures: "لا توجد محاضرات مجدولة لليوم.", empty: "لا توجد سجلات حالية.", action: "إجراء",
+    online: "متصل", offline: "غير متصل", exportExcel: "اكسل", exportPDF: "PDF",
+    confirmTitle: "تأكيد الحذف",
+    confirmMsgPre: "هل أنت متأكد من حذف",
+    confirmMsgPost: "؟ لا يمكن التراجع عن هذا الإجراء.",
+    confirmBtn: "نعم، احذف",
+    keepBtn: "لا، احتفظ به",
+    type_teacher: "المعلم", type_grade: "المستوى", type_category: "الفئة", type_subcategory: "الفئة الفرعية", type_entry: "السجل",
+    currency: "ج.م",
+    attendance: "الحضور والانصراف", attDate: "التاريخ", attType: "الفئة",
+    attPresent: "حاضر", attAbsent: "غائب", attSave: "حفظ السجلات",
+    attStudents: "الطلاب", attTeachers: "المعلمون", attSuccess: "تم حفظ كشف الحضور بنجاح.",
+    attLecture: "المحاضرة", attNote: "ملاحظة (في حال الغياب)", teachersMgmt: "إدارة المعلمين",
+    teacherTimeline: "الجدول الزمني والمواد", teacherHistory: "سجل الحضور والغياب",
+    cash_flow: "التدفق المالي", cash_flow_title: "كشف التدفق المالي",
+    cf_type: "تصفية بالنوع", cf_cat: "تصفية بالفئة",
+    type_all: "الكل", type_inflow: "وارد", type_outflow: "صادر",
+    securityAlert: "تنبيه أمني: فحص المصدر معطل لأسباب أمنية."
+  }
+};
+
+const NAV_ITEMS = [
+  { id: 'dashboard', label: { en: 'Dashboard', ar: 'لوحة القيادة' }, icon: LayoutDashboard },
+  { id: 'students', label: { en: 'Students', ar: 'الطلاب' }, icon: Users, tableCols: { en: ['Stu-ID', 'Student Name', 'Age', 'Phone', 'Grade'], ar: ['رقم الطالب', 'اسم الطالب', 'العمر', 'الهاتف', 'السنة الدراسية'] } },
+  { id: 'teachers_mgmt', label: { en: 'Teachers', ar: 'المعلمون' }, icon: UserCog },
+  { id: 'attendance', label: { en: 'Attendance', ar: 'الحضور والانصراف' }, icon: ClipboardCheck },
+  { id: 'subjects', label: { en: 'Subjects', ar: 'المواد والجدول' }, icon: CalendarClock, tableCols: { en: ['Grade', 'Subject Name', 'Teacher Name', 'Day', 'Room', 'Start Time'], ar: ['المستوى', 'اسم المادة', 'المعلم', 'اليوم', 'القاعة', 'وقت البدء'] } },
+  { id: 'income', label: { en: 'Income', ar: 'الإيرادات' }, icon: TrendingUp, tableCols: { en: ['Stu-ID', 'Student Name', 'Category', 'Subcategory', 'Amount', 'Date'], ar: ['رقم الطالب', 'اسم الطالب', 'الفئة', 'الفئة الفرعية', 'المبلغ', 'التاريخ'] } },
+  { id: 'expenses', label: { en: 'Expenses', ar: 'المصاريف' }, icon: TrendingDown, tableCols: { en: ['Expense ID', 'Title', 'Category', 'Subcategory', 'Amount', 'Date'], ar: ['المعرف', 'العنوان', 'الفئة', 'الفئة الفرعية', 'المبلغ', 'التاريخ'] } },
+  { id: 'cash_flow', label: { en: 'Cash Flow', ar: 'التدفق المالي' }, icon: ArrowLeftRight, tableCols: { en: ['Type', 'Label', 'Category', 'Amount', 'Date'], ar: ['النوع', 'البيان', 'الفئة', 'المبلغ', 'التاريخ'] } },
+  { id: 'config', label: { en: 'Settings', ar: 'الإعدادات' }, icon: Settings2 }
+];
+
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// --- Root Component ---
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [page, setPage] = useState('dashboard');
+  const [lang, setLang] = useState('en');
+  const [darkMode, setDarkMode] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [gradeFilter, setGradeFilter] = useState('All');
+  const [cfTypeFilter, setCfTypeFilter] = useState('All');
+  const [cfCatFilter, setCfCatFilter] = useState('All');
+  
+  const [viewingStudentId, setViewingStudentId] = useState(null);
+  const [viewingTeacherName, setViewingTeacherName] = useState(null);
+  
+  const [attDate, setAttDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attType, setAttType] = useState('Students');
+  const [attLecture, setAttLecture] = useState('General');
+  const [tempAttendance, setTempAttendance] = useState({});
+  const [deleteConfirmation, setDeleteConfirmation] = useState(null);
+  
+  const [notifications, setNotifications] = useState([]);
+  
+  const [data, setData] = useState({
+    students: [],
+    income: [],
+    expenses: [],
+    subjects: [],
+    attendance: [],
+    config: {
+      teachers: [],
+      gradeFees: {},
+      incomeCategories: [],
+      expenseCategories: []
+    }
+  });
+
+  const t = (key) => UI_STRINGS[lang][key] || key;
+  const _t = (en, ar) => lang === 'en' ? en : ar;
+
+  // --- Auth Effect ---
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.error("Auth Error", err);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  // --- Data Listeners ---
+  useEffect(() => {
+    if (!user) return;
+
+    const collectionsList = ['students', 'income', 'expenses', 'subjects', 'attendance'];
+    const unsubscribers = collectionsList.map(coll => 
+      onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', coll), (snap) => {
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setData(prev => ({ ...prev, [coll]: items }));
+      }, (err) => console.error(`Error fetching ${coll}`, err))
+    );
+
+    const configUnsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), (ds) => {
+      if (ds.exists()) {
+        setData(prev => ({ ...prev, config: ds.data() }));
+      } else {
+        setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), data.config);
+      }
+    });
+
+    return () => {
+      unsubscribers.forEach(un => un());
+      configUnsub();
+    };
+  }, [user]);
+
+  // --- Security Effect ---
+  useEffect(() => {
+    const handleContext = (e) => {
+      e.preventDefault();
+      pushNotify(t('securityAlert'));
+    };
+    const handleKey = (e) => {
+      const isF12 = e.key === 'F12';
+      const isInspect = e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C');
+      const isViewSource = e.ctrlKey && (e.key === 'u' || e.key === 'U');
+      if (isF12 || isInspect || isViewSource) {
+        e.preventDefault();
+        pushNotify(t('securityAlert'));
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContext);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('contextmenu', handleContext);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [lang]);
+
+  // --- Helpers ---
+  const pushNotify = (msg) => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, msg }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 4000);
+  };
+
+  const getTotals = () => {
+    const inc = data.income.reduce((s, i) => s + (parseFloat(i.Amount) || 0), 0);
+    const exp = data.expenses.reduce((s, e) => s + (parseFloat(e.Amount) || 0), 0);
+    return { inc, exp, net: inc - exp };
+  };
+
+  const generateID = (prefix = 'STU-', list = []) => {
+    let max = 0;
+    const key = prefix === 'STU-' ? 'Stu-ID' : 'Expense ID';
+    list.forEach(item => {
+      const numPart = parseInt((item[key] || '').replace(prefix, ''));
+      if (!isNaN(numPart) && numPart > max) max = numPart;
+    });
+    return prefix + String(max + 1).padStart(4, '0');
+  };
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+    const fd = new FormData(e.target);
+    const item = {};
+    fd.forEach((v, k) => item[k] = v);
+
+    if (page === 'students') item['Stu-ID'] = generateID('STU-', data.students);
+    if (page === 'expenses') item['Expense ID'] = generateID('EXP-', data.expenses);
+
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', page), item);
+      setIsModalOpen(false);
+      pushNotify("Record added successfully.");
+    } catch (err) {
+      pushNotify("Error: " + err.message);
+    }
+  };
+
+  const executeDelete = async () => {
+    if (!user || !deleteConfirmation) return;
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', page, deleteConfirmation.id));
+      setDeleteConfirmation(null);
+      pushNotify("Record deleted.");
+    } catch (err) {
+      pushNotify("Delete error: " + err.message);
+    }
+  };
+
+  const updateConfig = async (newConfig) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), newConfig);
+    } catch (err) {
+      pushNotify("Config error: " + err.message);
+    }
+  };
+
+  // --- Extraction Functions ---
+  const handleExportExcel = () => {
+    const cols = NAV_ITEMS.find(n => n.id === page)?.tableCols?.en;
+    if (!cols || filteredData.length === 0) return pushNotify("No data to export");
+    
+    // @ts-ignore
+    if (typeof XLSX === 'undefined') return pushNotify("Excel Library not loaded");
+    
+    const cleanData = filteredData.map(item => {
+      const row = {};
+      cols.forEach(col => row[col] = item[col] || '-');
+      return row;
+    });
+    
+    // @ts-ignore
+    const ws = XLSX.utils.json_to_sheet(cleanData);
+    // @ts-ignore
+    const wb = XLSX.utils.book_new();
+    // @ts-ignore
+    XLSX.utils.book_append_sheet(wb, ws, "MantiqData");
+    // @ts-ignore
+    XLSX.writeFile(wb, `Mantiq_${page}_${Date.now()}.xlsx`);
+  };
+
+  const handleExportPDF = () => {
+    const cols = NAV_ITEMS.find(n => n.id === page)?.tableCols?.en;
+    if (!cols || filteredData.length === 0) return pushNotify("No data to export");
+
+    // @ts-ignore
+    if (typeof jspdf === 'undefined') return pushNotify("PDF Library not loaded");
+
+    // @ts-ignore
+    const docPdf = new jspdf.jsPDF('l', 'mm', 'a4');
+    const pageLabel = _t(NAV_ITEMS.find(n => n.id === page).label.en, NAV_ITEMS.find(n => n.id === page).label.ar);
+
+    docPdf.setFillColor(0, 30, 60);
+    docPdf.rect(0, 0, 297, 25, 'F');
+    docPdf.setTextColor(255, 255, 255);
+    docPdf.setFontSize(18);
+    docPdf.text(`MANTIQ ACADEMY - ${pageLabel.toUpperCase()}`, 14, 16);
+
+    const body = filteredData.map(item => cols.map(c => item[c] || '-'));
+    
+    // @ts-ignore
+    docPdf.autoTable({
+      head: [cols],
+      body: body,
+      startY: 30,
+      theme: 'striped',
+      headStyles: { fillColor: [56, 189, 248] }
+    });
+
+    docPdf.save(`Mantiq_${page}.pdf`);
+  };
+
+  // --- Table Filters ---
+  const filteredData = useMemo(() => {
+    let raw = data[page] || [];
+    if (page === 'cash_flow') {
+      raw = [
+        ...data.income.map(i => ({ ...i, Type: 'Inflow', Label: i['Student Name'] })),
+        ...data.expenses.map(e => ({ ...e, Type: 'Outflow', Label: e['Title'] }))
+      ].sort((a, b) => new Date(b.Date) - new Date(a.Date));
+      
+      if (cfTypeFilter !== 'All') raw = raw.filter(x => x.Type === cfTypeFilter);
+      if (cfCatFilter !== 'All') raw = raw.filter(x => x.Category === cfCatFilter);
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      raw = raw.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
+    }
+
+    const nav = NAV_ITEMS.find(n => n.id === page);
+    if (gradeFilter !== 'All' && nav?.tableCols?.en?.includes('Grade')) {
+      raw = raw.filter(r => r.Grade === gradeFilter);
+    }
+
+    return raw;
+  }, [page, data, searchQuery, gradeFilter, cfTypeFilter, cfCatFilter]);
+
+  // --- Sub-Components ---
+  const NotificationToast = ({ n }) => (
+    <div className="bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 animate-bounce border-l-4 border-rose-500">
+      <ShieldAlert className="text-rose-500 w-5 h-5" />
+      <span className="text-xs font-bold">{n.msg}</span>
+    </div>
+  );
+
+  const Dashboard = () => {
+    const totals = getTotals();
+    const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    const lectures = data.subjects.filter(s => s.Day === todayName);
+
+    return (
+      <div className="space-y-10 animate-in fade-in duration-500">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard label={t('assets')} value={data.students.length} color="text-slate-900 dark:text-white" />
+          <StatCard label={t('inflow')} value={totals.inc.toLocaleString()} sub={t('currency')} color="text-emerald-600" />
+          <StatCard label={t('outflow')} value={totals.exp.toLocaleString()} sub={t('currency')} color="text-rose-600" />
+          <StatCard label={t('netCash')} value={totals.net.toLocaleString()} sub={t('currency')} color="text-sky-500" />
+        </div>
+        
+        <div>
+          <h3 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
+            <CalendarClock className="text-sky-500" /> {t('todaySchedule')}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {lectures.length > 0 ? lectures.map((l, idx) => (
+              <div key={idx} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-[10px] font-black text-sky-500 uppercase">{l.Room}</span>
+                  <span className="px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded text-[9px] font-black uppercase">{l.Grade}</span>
+                </div>
+                <h4 className="text-lg font-black">{l['Subject Name']}</h4>
+                <p className="text-xs text-slate-500 font-bold mb-4">{l['Teacher Name']}</p>
+                <div className="flex items-center gap-2 text-sky-500 font-black text-xs pt-4 border-t border-slate-50 dark:border-slate-800">
+                  <Clock size={14} /> {l['Start Time']}
+                </div>
+              </div>
+            )) : (
+              <div className="col-span-full py-20 text-center text-slate-300 font-black uppercase border-2 border-dashed border-slate-100 rounded-3xl">
+                {t('noLectures')}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const StatCard = ({ label, value, sub, color }) => (
+    <div className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-100 dark:border-none shadow-sm">
+      <h4 className="text-slate-400 text-[10px] font-black uppercase mb-2">{label}</h4>
+      <p className={`text-3xl font-black ${color}`}>
+        {value} {sub && <span className="text-xs font-bold">{sub}</span>}
+      </p>
+    </div>
+  );
+
+  const AttendanceView = () => {
+    const dayName = new Date(attDate).toLocaleDateString('en-US', { weekday: 'long' });
+    const subjectsToday = data.subjects.filter(s => s.Day === dayName);
+    
+    let list = [];
+    if (attType === 'Students') {
+      const gradesToday = [...new Set(subjectsToday.map(s => s.Grade))];
+      list = data.students.filter(stu => gradesToday.includes(stu.Grade));
+    } else {
+      const teachersToday = [...new Set(subjectsToday.map(s => s['Teacher Name']))];
+      list = data.config.teachers.filter(t => teachersToday.includes(t));
+    }
+
+    const records = data.attendance.filter(a => a.Date === attDate && a.Type === attType && a.Lecture === attLecture);
+
+    const saveAttendance = async () => {
+      const entries = Object.entries(tempAttendance);
+      if (entries.length === 0) return pushNotify("No records to save.");
+      
+      try {
+        for (const [id, attData] of entries) {
+          if (!attData.status) continue;
+          const label = attType === 'Students' 
+            ? data.students.find(s => s['Stu-ID'] === id)?.['Student Name'] 
+            : id;
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'attendance'), {
+            Date: attDate, Type: attType, Lecture: attLecture,
+            TargetID: id, Label: label || id, Status: attData.status,
+            Note: attData.status === 'Absent' ? attData.note : "", Timestamp: Date.now()
+          });
+        }
+        pushNotify(t('attSuccess'));
+        setTempAttendance({});
+      } catch (err) { pushNotify(err.message); }
+    };
+
+    return (
+      <div className="space-y-8 animate-in fade-in">
+        <div className="flex flex-col lg:flex-row justify-between gap-6">
+          <h2 className="text-3xl font-black uppercase tracking-tighter">{t('attendance')}</h2>
+          <div className="flex flex-wrap gap-4 items-end bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-none">
+            <FilterSelect label={t('attDate')} value={attDate} onChange={e => {setAttDate(e.target.value); setTempAttendance({});}} type="date" />
+            <FilterSelect label={t('attType')} value={attType} onChange={e => {setAttType(e.target.value); setTempAttendance({});}}>
+              <option value="Students">{t('attStudents')}</option>
+              <option value="Teachers">{t('attTeachers')}</option>
+            </FilterSelect>
+            <FilterSelect label={t('attLecture')} value={attLecture} onChange={e => {setAttLecture(e.target.value); setTempAttendance({});}}>
+              <option value="General">General</option>
+              {subjectsToday.map((s, i) => <option key={i} value={s['Subject Name']}>{s['Subject Name']} ({s.Grade})</option>)}
+            </FilterSelect>
+            <button onClick={saveAttendance} className="bg-slate-900 dark:bg-sky-500 dark:text-slate-900 text-white px-8 py-3 rounded-xl font-black text-xs uppercase shadow-lg hover:scale-105 transition-all">
+              {t('attSave')}
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-none overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase">
+              <tr>
+                <th className="px-8 py-6">Name</th>
+                <th className="px-8 py-6">Status</th>
+                <th className="px-8 py-6">Note</th>
+                <th className="px-8 py-6 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {list.length > 0 ? list.map((item, idx) => {
+                const id = attType === 'Students' ? item['Stu-ID'] : item;
+                const name = attType === 'Students' ? item['Student Name'] : item;
+                const existing = records.find(x => x.TargetID === id);
+                const status = tempAttendance[id]?.status || (existing ? existing.Status : null);
+                const note = tempAttendance[id]?.note || (existing ? existing.Note : "");
+
+                return (
+                  <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                    <td className="px-8 py-5">
+                      <p className="text-sm font-black">{name}</p>
+                      {attType === 'Students' && <p className="text-[9px] text-slate-400 font-black">{id} - Grade: {item.Grade}</p>}
+                    </td>
+                    <td className="px-8 py-5">
+                      {status && (
+                        <span className={`px-3 py-1 rounded text-[8px] font-black uppercase ${status === 'Present' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                          {status}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-8 py-5">
+                      {status === 'Absent' ? (
+                        <input 
+                          type="text" placeholder="Note..." 
+                          value={note} 
+                          onChange={e => setTempAttendance(prev => ({...prev, [id]: {...(prev[id] || {}), note: e.target.value}}))}
+                          className="bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded text-xs outline-none w-full max-w-[150px]" 
+                        />
+                      ) : '-'}
+                    </td>
+                    <td className="px-8 py-5 flex justify-center gap-2">
+                      <button 
+                        onClick={() => setTempAttendance(prev => ({...prev, [id]: {...(prev[id] || {}), status: 'Present'}}))}
+                        className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${status === 'Present' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
+                      >
+                        {t('attPresent')}
+                      </button>
+                      <button 
+                        onClick={() => setTempAttendance(prev => ({...prev, [id]: {...(prev[id] || {}), status: 'Absent'}}))}
+                        className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${status === 'Absent' ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
+                      >
+                        {t('attAbsent')}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }) : (
+                <tr><td colSpan="4" className="py-20 text-center text-slate-300 font-black uppercase">{dayName}: {t('noLectures')}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const FilterSelect = ({ label, value, onChange, children, type = "select" }) => (
+    <div>
+      <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">{label}</label>
+      {type === "date" ? (
+        <input type="date" value={value} onChange={onChange} className="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none border-none" />
+      ) : (
+        <select value={value} onChange={onChange} className="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none border-none">
+          {children}
+        </select>
+      )}
+    </div>
+  );
+
+  const StudentProfile = ({ id }) => {
+    const s = data.students.find(x => x['Stu-ID'] === id);
+    const history = data.attendance.filter(a => a.TargetID === id).sort((a, b) => b.Timestamp - a.Timestamp);
+    
+    if (!s) return null;
+
+    return (
+      <div className="animate-in fade-in space-y-8">
+        <button onClick={() => setViewingStudentId(null)} className="text-[10px] font-black uppercase text-slate-400 hover:text-sky-500 flex items-center gap-1">
+          <ChevronLeft size={14} /> {t('backToList')}
+        </button>
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center font-black text-2xl shadow-xl">
+            {s['Student Name'].charAt(0)}
+          </div>
+          <h2 className="text-3xl font-black uppercase">{s['Student Name']}</h2>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-none">
+            <div className="space-y-4">
+              {Object.entries(s).map(([k, v]) => k !== 'id' && (
+                <div key={k} className="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
+                  <span className="text-[9px] font-black text-slate-400 uppercase">{k}</span>
+                  <span className="text-xs font-bold">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-none">
+            <h3 className="font-black text-sm uppercase mb-6 flex items-center gap-2">
+              <History className="text-sky-500" /> {t('teacherHistory')}
+            </h3>
+            <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar">
+              {history.length > 0 ? history.map((a, i) => (
+                <div key={i} className="flex justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                  <div>
+                    <p className="text-xs font-bold">{a.Date} | {a.Lecture}</p>
+                    {a.Note && <p className="text-[9px] text-rose-500 font-bold uppercase">{a.Note}</p>}
+                  </div>
+                  <span className={`font-black uppercase text-[10px] ${a.Status === 'Present' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {a.Status}
+                  </span>
+                </div>
+              )) : <p className="text-xs text-slate-400 italic">No records found.</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const ConfigView = () => {
+    const [catInputs, setCatInputs] = useState({ income: '', expense: '' });
+    const [subInputs, setSubInputs] = useState({});
+
+    const handleAddCat = (type) => {
+      const name = catInputs[type].trim();
+      if (!name) return;
+      const newList = [...data.config[`${type}Categories`], { name, subs: [] }];
+      updateConfig({ ...data.config, [`${type}Categories`]: newList });
+      setCatInputs(prev => ({ ...prev, [type]: '' }));
+    };
+
+    const handleAddSub = (type, catIdx) => {
+      const name = subInputs[`${type}-${catIdx}`]?.trim();
+      if (!name) return;
+      const newList = [...data.config[`${type}Categories`]];
+      newList[catIdx].subs.push(name);
+      updateConfig({ ...data.config, [`${type}Categories`]: newList });
+      setSubInputs(prev => ({ ...prev, [`${type}-${catIdx}`]: '' }));
+    };
+
+    return (
+      <div className="space-y-8 pb-20 animate-in fade-in">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Teachers */}
+          <ConfigCard title="Teachers" icon={UserCog}>
+            <div className="flex gap-2 mb-6">
+              <input id="new-teacher" className="flex-1 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none text-xs font-bold" placeholder="Teacher Name..." />
+              <button 
+                onClick={() => {
+                  const val = document.getElementById('new-teacher').value.trim();
+                  if(val) { updateConfig({...data.config, teachers: [...data.config.teachers, val]}); document.getElementById('new-teacher').value = ''; }
+                }}
+                className="bg-slate-900 dark:bg-slate-700 text-white p-3 rounded-xl"
+              ><Plus size={18} /></button>
+            </div>
+            <div className="space-y-2">
+              {data.config.teachers.map((t, i) => (
+                <div key={i} className="flex justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                  <span className="text-sm font-bold">{t}</span>
+                  <button onClick={() => updateConfig({...data.config, teachers: data.config.teachers.filter((_, idx) => idx !== i)})}>
+                    <Trash2 className="text-rose-400 w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </ConfigCard>
+
+          {/* Grades */}
+          <ConfigCard title="Grades & Fees" icon={GraduationCap}>
+            <div className="space-y-3 mb-6">
+              <input id="new-grade" className="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none text-xs font-bold" placeholder="Grade Name (e.g. Year 1)..." />
+              <div className="flex gap-2">
+                <input id="new-grade-fee" type="number" className="flex-1 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none text-xs font-bold" placeholder="Base Fee..." />
+                <button 
+                  onClick={() => {
+                    const g = document.getElementById('new-grade').value.trim();
+                    const f = parseFloat(document.getElementById('new-grade-fee').value);
+                    if(g && !isNaN(f)) { updateConfig({...data.config, gradeFees: {...data.config.gradeFees, [g]: f}}); document.getElementById('new-grade').value = ''; document.getElementById('new-grade-fee').value = ''; }
+                  }}
+                  className="bg-slate-900 dark:bg-slate-700 text-white px-6 rounded-xl font-black text-[10px] uppercase"
+                >Add</button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {Object.entries(data.config.gradeFees).map(([g, f]) => (
+                <div key={g} className="flex justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                  <div><p className="font-black text-xs">{g}</p><p className="text-[9px] text-sky-500 font-bold uppercase">{f} {t('currency')}</p></div>
+                  <button onClick={() => { const nc = {...data.config.gradeFees}; delete nc[g]; updateConfig({...data.config, gradeFees: nc}); }}>
+                    <Trash2 className="text-rose-400 w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </ConfigCard>
+        </div>
+
+        {/* Categories Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {['income', 'expense'].map(type => (
+            <ConfigCard key={type} title={`${type.charAt(0).toUpperCase() + type.slice(1)} Categories`} icon={Layers}>
+              <div className="flex gap-2 mb-6">
+                <input 
+                  value={catInputs[type]}
+                  onChange={e => setCatInputs(prev => ({ ...prev, [type]: e.target.value }))}
+                  className="flex-1 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none text-xs font-bold" 
+                  placeholder="Category Name..." 
+                />
+                <button onClick={() => handleAddCat(type)} className="bg-slate-900 dark:bg-slate-700 text-white p-3 rounded-xl">
+                  <Plus size={18} />
+                </button>
+              </div>
+              <div className="space-y-4">
+                {(data.config[`${type}Categories`] || []).map((c, ci) => (
+                  <div key={ci} className="p-5 bg-slate-50 dark:bg-slate-800/30 rounded-2xl">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white">{c.name}</span>
+                      <button onClick={() => {
+                        const newList = data.config[`${type}Categories`].filter((_, idx) => idx !== ci);
+                        updateConfig({ ...data.config, [`${type}Categories`]: newList });
+                      }}><Trash2 className="text-rose-400 w-4 h-4" /></button>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {c.subs.map((s, si) => (
+                        <span key={si} className="bg-white dark:bg-slate-700 px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-2 shadow-sm">
+                          {s}
+                          <button onClick={() => {
+                            const newList = [...data.config[`${type}Categories`]];
+                            newList[ci].subs = newList[ci].subs.filter((_, idx) => idx !== si);
+                            updateConfig({ ...data.config, [`${type}Categories`]: newList });
+                          }}><XCircle size={12} className="text-rose-400" /></button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input 
+                        value={subInputs[`${type}-${ci}`] || ''}
+                        onChange={e => setSubInputs(prev => ({ ...prev, [`${type}-${ci}`]: e.target.value }))}
+                        className="flex-1 bg-white dark:bg-slate-900 px-3 py-1 rounded-lg text-[9px] outline-none shadow-inner border border-slate-100 dark:border-none" 
+                        placeholder="Subcategory..." 
+                      />
+                      <button onClick={() => handleAddSub(type, ci)} className="text-sky-500 hover:scale-110 transition-transform">
+                        <PlusCircle size={18} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ConfigCard>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const ConfigCard = ({ title, icon: Icon, children }) => (
+    <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-none">
+      <h3 className="font-black text-sm uppercase mb-6 flex items-center gap-2">
+        <Icon className="text-sky-500" size={18} /> {title}
+      </h3>
+      {children}
+    </div>
+  );
+
+  const Sidebar = () => (
+    <aside className={`fixed lg:static w-72 flex flex-col h-full bg-white dark:bg-slate-900 border-slate-100 dark:border-none z-50 transition-transform ${lang === 'en' ? 'left-0 border-r -translate-x-full' : 'right-0 border-l translate-x-full'} ${isSidebarOpen ? 'translate-x-0' : ''} lg:translate-x-0`}>
+      <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-sky-500 rounded-xl shadow-lg shadow-sky-500/30">
+            <GraduationCap className="text-white" size={20} />
+          </div>
+          <span className="text-xl font-black uppercase tracking-tighter">MANTIQ</span>
+        </div>
+        <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden"><X /></button>
+      </div>
+      <nav className="flex-1 p-6 space-y-1 overflow-y-auto custom-scrollbar">
+        {NAV_ITEMS.map(item => (
+          <button 
+            key={item.id}
+            onClick={() => { setPage(item.id); setViewingStudentId(null); setViewingTeacherName(null); setIsSidebarOpen(false); }}
+            className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-sm font-bold transition-all ${page === item.id ? 'bg-sky-500 text-white shadow-xl shadow-sky-500/20' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:text-slate-400'}`}
+          >
+            <item.icon size={18} />
+            <span className="truncate">{_t(item.label.en, item.label.ar)}</span>
+          </button>
+        ))}
+      </nav>
+    </aside>
+  );
+
+  const Modal = () => {
+    const nav = NAV_ITEMS.find(n => n.id === page);
+    if (!nav?.tableCols) return null;
+
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+        <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
+          <h2 className="text-2xl font-black uppercase tracking-tighter mb-8">{t('addRecord')}</h2>
+          <form onSubmit={handleAdd}>
+            {nav.tableCols.en.map((c, i) => {
+              if (['Stu-ID', 'Expense ID'].includes(c)) return null;
+              const label = _t(c, nav.tableCols.ar[i]);
+              
+              const inputClass = "w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm border-none focus:ring-2 focus:ring-sky-500/50 transition-all";
+
+              if (c === 'Teacher Name') return (
+                <div key={i} className="mb-4">
+                  <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">{label}</label>
+                  <select name={c} className={inputClass}>
+                    {data.config.teachers.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              );
+              
+              if (c === 'Grade') return (
+                <div key={i} className="mb-4">
+                  <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">{label}</label>
+                  <select name={c} className={inputClass}>
+                    {Object.keys(data.config.gradeFees).map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+              );
+
+              if (c === 'Day') return (
+                <div key={i} className="mb-4">
+                  <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">{label}</label>
+                  <select name={c} className={inputClass}>
+                    {DAYS_OF_WEEK.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+              );
+
+              if (c === 'Category') {
+                const list = page === 'income' ? data.config.incomeCategories : data.config.expenseCategories;
+                return (
+                  <div key={i} className="mb-4">
+                    <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">{label}</label>
+                    <select name={c} className={inputClass}>
+                      {list.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
+                    </select>
+                  </div>
+                );
+              }
+
+              let type = "text";
+              if (c.includes('Date')) type = "date";
+              else if (c === 'Amount') type = "number";
+              else if (c === 'Start Time') type = "time";
+
+              return (
+                <div key={i} className="mb-4">
+                  <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">{label}</label>
+                  <input name={c} type={type} className={inputClass} required />
+                </div>
+              );
+            })}
+            <div className="flex gap-3 mt-10">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 py-4 rounded-2xl uppercase font-black text-xs text-slate-400">{t('cancel')}</button>
+              <button type="submit" className="flex-1 bg-slate-900 dark:bg-sky-500 dark:text-slate-900 text-white py-4 rounded-2xl uppercase font-black text-xs shadow-xl">{t('submit')}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  const ConfirmationModal = () => (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 text-center shadow-2xl">
+        <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6">
+          <AlertTriangle size={32} />
+        </div>
+        <h2 className="text-2xl font-black uppercase mb-4 tracking-tighter">{t('confirmTitle')}</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mb-10 leading-relaxed">
+          {t('confirmMsgPre')} {deleteConfirmation.label} {t('confirmMsgPost')}
+        </p>
+        <div className="flex flex-col gap-3">
+          <button onClick={executeDelete} className="w-full bg-rose-500 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-xl">{t('confirmBtn')}</button>
+          <button onClick={() => setDeleteConfirmation(null)} className="w-full bg-slate-100 dark:bg-slate-800 py-4 rounded-2xl font-black uppercase text-xs text-slate-400">{t('keepBtn')}</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={`flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+        <header className="h-20 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-100 dark:border-none sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">
+              <Menu size={20} />
+            </button>
+            <h2 className="text-lg font-black uppercase tracking-tighter">
+              {_t(NAV_ITEMS.find(n => n.id === page)?.label?.en, NAV_ITEMS.find(n => n.id === page)?.label?.ar)}
+            </h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
+              <div className={`w-2 h-2 rounded-full ${user ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+              <span className="text-[8px] font-black uppercase text-slate-500">{user ? t('online') : t('offline')}</span>
+            </div>
+            <button 
+              onClick={() => {
+                const nl = lang === 'en' ? 'ar' : 'en';
+                setLang(nl);
+                document.body.dir = nl === 'ar' ? 'rtl' : 'ltr';
+              }} 
+              className="text-[10px] font-black uppercase px-4 py-2 border rounded-xl border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            >
+              {lang === 'en' ? 'Arabic' : 'English'}
+            </button>
+            <button onClick={() => setDarkMode(!darkMode)} className="p-2.5 bg-white border border-slate-200 rounded-full dark:bg-slate-800 dark:border-none shadow-sm hover:scale-110 transition-all">
+              {darkMode ? <Sun size={16} className="text-amber-500" /> : <Moon size={16} className="text-sky-500" />}
+            </button>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-12 max-w-7xl mx-auto w-full">
+          {viewingStudentId ? <StudentProfile id={viewingStudentId} /> : (
+            <>
+              {page === 'dashboard' && <Dashboard />}
+              {page === 'attendance' && <AttendanceView />}
+              {page === 'config' && <ConfigView />}
+              {page === 'teachers_mgmt' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in">
+                  {data.config.teachers.map(name => (
+                    <div key={name} className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-none hover:shadow-xl transition-all cursor-pointer group">
+                      <div className="flex items-center gap-6">
+                        <div className="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black text-xl group-hover:bg-sky-500 transition-colors">
+                          {name.charAt(0)}
+                        </div>
+                        <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase">{name}</h4>
+                      </div>
+                      <div className="mt-8 pt-6 border-t border-slate-50 dark:border-slate-800 flex justify-between items-center text-sky-500">
+                        <span className="text-[9px] font-black uppercase tracking-widest">Active Profile</span>
+                        <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {['students', 'subjects', 'income', 'expenses', 'cash_flow'].includes(page) && (
+                <div className="space-y-8 animate-in fade-in">
+                  <div className="flex flex-col lg:flex-row justify-between gap-6">
+                    <div>
+                      <h2 className="text-3xl font-black uppercase tracking-tighter">
+                        {_t(NAV_ITEMS.find(n => n.id === page).label.en, NAV_ITEMS.find(n => n.id === page).label.ar)}
+                      </h2>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{filteredData.length} Records</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={handleExportExcel} className="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200">
+                        <FileSpreadsheet size={16} /> {t('exportExcel')}
+                      </button>
+                      <button onClick={handleExportPDF} className="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200">
+                        <FileText size={16} /> {t('exportPDF')}
+                      </button>
+                      {page !== 'cash_flow' && (
+                        <button onClick={() => setIsModalOpen(true)} className="bg-slate-900 dark:bg-sky-500 dark:text-slate-900 text-white px-8 py-4 rounded-xl font-black text-xs uppercase shadow-xl hover:scale-105 transition-all">
+                          {t('addRecord')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-none p-4 flex flex-col sm:flex-row gap-4 items-center">
+                    <div className="flex-1 w-full relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                      <input 
+                        type="text" 
+                        placeholder={t('searchPlaceholder')} 
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none border-none focus:ring-2 focus:ring-sky-500/30 transition-all" 
+                      />
+                    </div>
+                    {page === 'cash_flow' && (
+                      <>
+                        <FilterSelect label={t('cf_type')} value={cfTypeFilter} onChange={e => setCfTypeFilter(e.target.value)}>
+                          <option value="All">{t('type_all')}</option>
+                          <option value="Inflow">{t('type_inflow')}</option>
+                          <option value="Outflow">{t('type_outflow')}</option>
+                        </FilterSelect>
+                        <FilterSelect label={t('cf_cat')} value={cfCatFilter} onChange={e => setCfCatFilter(e.target.value)}>
+                          <option value="All">{t('type_all')}</option>
+                          {[...new Set([...(data.config.incomeCategories || []).map(c => c.name), ...(data.config.expenseCategories || []).map(c => c.name)])].map(c => <option key={c} value={c}>{c}</option>)}
+                        </FilterSelect>
+                      </>
+                    )}
+                    {NAV_ITEMS.find(n => n.id === page)?.tableCols?.en?.includes('Grade') && (
+                      <FilterSelect label={t('filterAll')} value={gradeFilter} onChange={e => setGradeFilter(e.target.value)}>
+                        <option value="All">{t('filterAll')}</option>
+                        {Object.keys(data.config.gradeFees).map(g => <option key={g} value={g}>{g}</option>)}
+                      </FilterSelect>
+                    )}
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-none overflow-hidden overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase">
+                        <tr>
+                          {NAV_ITEMS.find(n => n.id === page).tableCols.en.map((c, i) => (
+                            <th key={i} className="px-6 py-5 whitespace-nowrap">{_t(c, NAV_ITEMS.find(n => n.id === page).tableCols.ar[i])}</th>
+                          ))}
+                          <th className="px-6 py-5 text-center">{t('action')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {filteredData.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                            {NAV_ITEMS.find(n => n.id === page).tableCols.en.map((k, ki) => (
+                              <td key={ki} className={`px-6 py-4 font-bold text-sm whitespace-nowrap ${k === 'Type' ? (row[k] === 'Inflow' ? 'text-emerald-500' : 'text-rose-500') : ''}`}>
+                                {row[k] || '-'}
+                              </td>
+                            ))}
+                            <td className="px-6 py-4 text-center flex justify-center gap-2">
+                              {page === 'students' && (
+                                <button onClick={() => setViewingStudentId(row['Stu-ID'])} className="p-2 text-sky-500 hover:bg-sky-500/10 rounded-xl transition-all">
+                                  <User size={18} />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => setDeleteConfirmation({ id: row.id, label: row['Student Name'] || row['Title'] || row['Subject Name'] || row.id })} 
+                                className="p-2 text-slate-300 hover:text-rose-500 transition-all"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </main>
+
+        {/* Global UI Components */}
+        <div className="fixed bottom-10 right-10 z-[110] space-y-3 pointer-events-none">
+          {notifications.map(n => <NotificationToast key={n.id} n={n} />)}
+        </div>
+        {isModalOpen && <Modal />}
+        {deleteConfirmation && <ConfirmationModal />}
+      </div>
+    </div>
+  );
+}

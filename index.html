@@ -7,12 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- مكتبات التصدير -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
-    <!-- تهيئة Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -102,7 +100,6 @@
         import { signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { collection, onSnapshot, doc, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- نصوص الواجهة والترجمات ---
         const UI = {
             en: {
                 dashboard: "Academy Overview", volume: "Total Revenue", assets: "Students",
@@ -115,7 +112,6 @@
                 gradeFee: "Base Fee", todaySchedule: "Today's Schedule",
                 noLectures: "No lectures scheduled for today.", empty: "No records found.", action: "Action",
                 online: "Connected", offline: "Offline", exportExcel: "Excel", exportPDF: "PDF",
-                searchableInfo: "Info: Search by Name to auto-fill ID.",
                 confirmTitle: "Delete Confirmation",
                 confirmMsgPre: "Are you sure you want to delete",
                 confirmMsgPost: "? This action cannot be undone.",
@@ -130,7 +126,7 @@
                 teacherTimeline: "Timeline & Schedule", teacherHistory: "Attendance History",
                 cash_flow: "Cash Flow", cf_type: "Filter by Type", cf_cat: "Filter by Category",
                 type_all: "All Types", type_inflow: "Inflow", type_outflow: "Outflow",
-                securityAlert: "Security Alert:  disabled for security reasons."
+                securityAlert: "Security Alert: Source inspection is disabled for security reasons."
             },
             ar: {
                 dashboard: "نظرة عامة", volume: "إجمالي الإيرادات", assets: "عدد الطلاب",
@@ -143,7 +139,6 @@
                 gradeFee: "الرسوم الأساسية", todaySchedule: "محاضرات اليوم",
                 noLectures: "لا توجد محاضرات مجدولة لليوم.", empty: "لا توجد سجلات حالية.", action: "إجراء",
                 online: "متصل", offline: "غير متصل", exportExcel: "اكسل", exportPDF: "PDF",
-                searchableInfo: "تنبيه: ابحث بالاسم ليتم ملء الرقم تلقائياً.",
                 confirmTitle: "تأكيد الحذف",
                 confirmMsgPre: "هل أنت متأكد من حذف",
                 confirmMsgPost: "؟ لا يمكن التراجع عن هذا الإجراء.",
@@ -159,7 +154,7 @@
                 cash_flow: "التدفق المالي", cash_flow_title: "كشف التدفق المالي",
                 cf_type: "تصفية بالنوع", cf_cat: "تصفية بالفئة",
                 type_all: "الكل", type_inflow: "وارد", type_outflow: "صادر",
-                securityAlert: "تنبيه أمني: معطل لأسباب أمنية."
+                securityAlert: "تنبيه أمني: فحص المصدر معطل لأسباب أمنية."
             }
         };
 
@@ -175,7 +170,6 @@
             { id: 'config', label: { en: 'Settings', ar: 'الإعدادات' }, icon: 'settings-2', tableCols: { en: ['Entity', 'Detail', 'Value'], ar: ['الكيان', 'التفاصيل', 'القيمة'] } }
         ];
 
-        // --- إدارة الحالة (State) ---
         let state = {
             page: 'dashboard',
             darkMode: false,
@@ -214,15 +208,12 @@
         const _t = (en, ar) => state.language === 'en' ? en : ar;
         const ut = (key) => UI[state.language][key] || key;
 
-        // --- نظام الحماية (Security Management) ---
         const initSecurity = () => {
-            // Disable Right Click
             document.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 pushNotify(ut('securityAlert'));
             });
 
-            // Disable Common DevTools Shortcuts
             document.addEventListener('keydown', (e) => {
                 const isF12 = e.key === 'F12';
                 const isInspect = e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C');
@@ -312,19 +303,16 @@
             const timestamp = new Date().toLocaleString(state.language === 'ar' ? 'ar-EG' : 'en-US');
             const pageName = _t(ACADEMY_NAV.find(n => n.id === state.page).label.en, ACADEMY_NAV.find(n => n.id === state.page).label.ar);
 
-            // Header Design
             doc.setFillColor(0, 30, 60);
             doc.rect(0, 0, 297, 30, 'F');
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(22);
             doc.text(`MANTIQ ACADEMY - ${pageName.toUpperCase()}`, 14, 20);
 
-            // Metadata Design
             doc.setTextColor(100, 100, 100);
             doc.setFontSize(10);
             doc.text(`Exported On: ${timestamp}`, 220, 40);
             
-            // Filters Info
             let filtersText = `Filters Applied: Search: ${state.searchQuery || 'None'}, `;
             if (state.page === 'cash_flow') {
                 filtersText += `Type: ${state.cfTypeFilter}, Category: ${state.cfCatFilter}`;
@@ -335,7 +323,6 @@
             }
             doc.text(filtersText, 14, 40);
 
-            // Table Data Mapping
             const body = data.map(item => cols.map(c => item[c] || '-'));
             const translatedHeaders = cols.map(c => {
                 const nav = ACADEMY_NAV.find(n => n.id === state.page);
@@ -528,8 +515,8 @@
                     <div class="flex flex-col lg:flex-row justify-between items-center gap-6">
                         <h2 class="text-3xl font-black uppercase tracking-tighter">${ut('cash_flow')}</h2>
                         <div class="flex gap-2">
-                             <button onclick="window.handleExportExcel()" class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200"><i data-lucide="file-spreadsheet" size="16"></i> ${ut('exportExcel')}</button>
-                             <button onclick="window.handleExportPDF()" class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200"><i data-lucide="file-text" size="16"></i> ${ut('exportPDF')}</button>
+                             <button onclick="window.handleExportExcel()" class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200"><i data-lucide="file-spreadsheet" size="16"></i> Excel</button>
+                             <button onclick="window.handleExportPDF()" class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200"><i data-lucide="file-text" size="16"></i> PDF</button>
                         </div>
                     </div>
 
@@ -721,17 +708,35 @@
         function renderModal() {
             const nav = ACADEMY_NAV.find(n => n.id === state.page);
             if (!nav || !nav.tableCols) return '';
+            
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
             const fields = nav.tableCols.en.map((c, i) => {
                 if (c==='Stu-ID'||c==='Expense ID') return '';
                 const label = _t(c, nav.tableCols.ar[i]);
-                if (c==='Teacher Name') return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">Teacher</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${state.data.config.teachers.map(t => `<option value="${t}">${t}</option>`).join('')}</select></div>`;
-                if (c==='Grade') return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">Grade</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}">${g}</option>`).join('')}</select></div>`;
+                
+                if (c==='Teacher Name') {
+                    return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${state.data.config.teachers.map(t => `<option value="${t}">${t}</option>`).join('')}</select></div>`;
+                }
+                if (c==='Grade') {
+                    return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}">${g}</option>`).join('')}</select></div>`;
+                }
+                if (c==='Day') {
+                    return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${days.map(d => `<option value="${d}">${d}</option>`).join('')}</select></div>`;
+                }
                 if (c==='Category') {
                     const list = state.page === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
-                    return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">Category</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${list.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}</select></div>`;
+                    return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${list.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}</select></div>`;
                 }
-                return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><input name="${c}" type="${c.includes('Date')?'date':(c==='Amount'?'number':'text')}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm" required /></div>`;
+                
+                let inputType = 'text';
+                if (c.includes('Date')) inputType = 'date';
+                else if (c==='Amount') inputType = 'number';
+                else if (c==='Start Time') inputType = 'time';
+
+                return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><input name="${c}" type="${inputType}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm" required /></div>`;
             }).join('');
+
             return `
                 <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-overlay fade-in">
                     <div class="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
@@ -747,7 +752,7 @@
         function renderConfirmationModal() {
             return `
                 <div class="fixed inset-0 z-[120] flex items-center justify-center p-4 modal-overlay fade-in">
-                    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] p-8 text-center shadow-2xl"><div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="alert-triangle" size="32"></i></div><h2 class="text-2xl font-black uppercase mb-4 tracking-tighter">${ut('confirmTitle')}</h2><p class="text-slate-500 dark:text-slate-400 text-sm mb-10 leading-relaxed">${ut('confirmMsgPre')} ${ut(state.deleteConfirmation.typeKey)} ${ut('confirmMsgPost')}</p><div class="flex flex-col gap-3"><button onclick="window.executeDelete()" class="w-full bg-rose-500 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-xl">${ut('confirmBtn')}</button><button onclick="window.cancelDelete()" class="w-full bg-slate-100 dark:bg-slate-800 py-4 rounded-2xl font-black uppercase text-xs text-slate-400">${ut('keepBtn')}</button></div></div>
+                    <div class="bg-white dark:bg-slate-900 w-full max-md rounded-[2rem] p-8 text-center shadow-2xl"><div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="alert-triangle" size="32"></i></div><h2 class="text-2xl font-black uppercase mb-4 tracking-tighter">${ut('confirmTitle')}</h2><p class="text-slate-500 dark:text-slate-400 text-sm mb-10 leading-relaxed">${ut('confirmMsgPre')} ${ut(state.deleteConfirmation.typeKey)} ${ut('confirmMsgPost')}</p><div class="flex flex-col gap-3"><button onclick="window.executeDelete()" class="w-full bg-rose-500 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-xl">${ut('confirmBtn')}</button><button onclick="window.cancelDelete()" class="w-full bg-slate-100 dark:bg-slate-800 py-4 rounded-2xl font-black uppercase text-xs text-slate-400">${ut('keepBtn')}</button></div></div>
                 </div>
             `;
         }

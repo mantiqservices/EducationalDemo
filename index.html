@@ -1,0 +1,1734 @@
+ <!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>MANTIQ | Academy Management System</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    
+
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+
+
+
+    <script type="module">
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+
+
+        const externalConfig = {
+
+            apiKey: "AIzaSyACmad2fQGzF_L1B7WXRYQGqbRx_hKQ2ns",
+
+            authDomain: "mantiqedu.firebaseapp.com",
+
+            projectId: "mantiqedu",
+
+            storageBucket: "mantiqedu.firebasestorage.app",
+
+            messagingSenderId: "226946538055",
+
+            appId: "1:226946538055:web:f31e5a7f80662366e02f62",
+
+            measurementId: "G-BFGV0W27QJ"
+
+        };
+
+
+
+        const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) 
+
+            ? JSON.parse(__firebase_config) 
+
+            : externalConfig;
+
+            
+
+        const app = initializeApp(firebaseConfig);
+
+        const auth = getAuth(app);
+
+        const db = getFirestore(app);
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mantiq-edu-prod';
+
+
+
+        window.mantiqDb = db;
+
+        window.mantiqAuth = auth;
+
+        window.mantiqAppId = appId;
+
+        window.mantiqFirestore = { doc, setDoc, getDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, query };
+
+    </script>
+
+
+
+    <style>
+
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&display=swap');
+
+        
+
+        :root {
+
+            --mantiq-cyan: #38bdf8;
+
+            --mantiq-navy: #001e3c;
+
+        }
+
+
+
+        body {
+
+            font-family: 'Plus Jakarta Sans', 'Noto Sans Arabic', sans-serif;
+
+            transition: background-color 0.3s ease;
+
+            user-select: none;
+
+        }
+
+
+
+        [dir="rtl"] {
+
+            font-family: 'Noto Sans Arabic', 'Plus Jakarta Sans', sans-serif;
+
+        }
+
+
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
+
+
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+
+        @keyframes fadeIn {
+
+            from { opacity: 0; transform: translateY(12px); }
+
+            to { opacity: 1; transform: translateY(0); }
+
+        }
+
+
+
+        .modal-overlay {
+
+            background-color: rgba(0, 30, 60, 0.7);
+
+            backdrop-filter: blur(8px);
+
+        }
+
+    </style>
+
+    <script>
+
+        tailwind.config = {
+
+            darkMode: 'class',
+
+            theme: {
+
+                extend: {
+
+                    colors: {
+
+                        mantiq: {
+
+                            cyan: '#38bdf8',
+
+                            navy: '#001e3c',
+
+                            navyLight: '#002b55'
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        };
+
+    </script>
+
+</head>
+
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen overflow-x-hidden" dir="ltr">
+
+
+
+    <div id="app" class="min-h-screen"></div>
+
+    <div id="notification-container" class="fixed bottom-10 right-10 z-[110] space-y-3"></div>
+
+
+
+    <script type="module">
+
+        import { signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        import { collection, onSnapshot, doc, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+
+
+
+        const UI = {
+
+            en: {
+
+                dashboard: "Academy Overview", volume: "Total Revenue", assets: "Students",
+
+                addRecord: "Add Entry", cancel: "Cancel", role: "Super Administrator",
+
+                submit: "Save & Sync", studentProfile: "Student Summary", backToList: "Back to List",
+
+                netCash: "Net Cash Flow", inflow: "Total Inflow", outflow: "Total Outflow",
+
+                restricted: "Action Restricted.", searchPlaceholder: "Search records...",
+
+                filterAll: "All Grades", addTeacher: "Add Teacher", addCategory: "Add Category",
+
+                addSub: "Add Sub", addGrade: "Add Grade", gradeName: "Grade Name",
+
+                gradeFee: "Base Fee", todaySchedule: "Today's Schedule",
+
+                noLectures: "No lectures scheduled for today.", empty: "No records found.", action: "Action",
+
+                online: "Connected", offline: "Offline", exportExcel: "Excel", exportPDF: "PDF",
+
+                confirmTitle: "Delete Confirmation",
+
+                confirmMsgPre: "Are you sure you want to delete",
+
+                confirmMsgPost: "? This action cannot be undone.",
+
+                confirmBtn: "Yes, Delete",
+
+                keepBtn: "No, Keep it",
+
+                type_teacher: "Teacher", type_grade: "Grade", type_category: "Category", type_subcategory: "Subcategory", type_entry: "Entry",
+
+                currency: "EGP",
+
+                attendance: "Attendance", attDate: "Date", attType: "Category",
+
+                attPresent: "Present", attAbsent: "Absent", attSave: "Save Records",
+
+                attStudents: "Students", attTeachers: "Teachers", attSuccess: "Attendance saved successfully.",
+
+                attLecture: "Lecture", attNote: "Note (If absent)", teachersMgmt: "Teachers Management",
+
+                teacherTimeline: "Timeline & Schedule", teacherHistory: "Attendance History",
+
+                cash_flow: "Cash Flow", cf_type: "Filter by Type", cf_cat: "Filter by Category",
+
+                type_all: "All Types", type_inflow: "Inflow", type_outflow: "Outflow",
+
+                securityAlert: "Security Alert: Source inspection is disabled for security reasons."
+
+            },
+
+            ar: {
+
+                dashboard: "نظرة عامة", volume: "إجمالي الإيرادات", assets: "عدد الطلاب",
+
+                addRecord: "إضافة سجل", cancel: "إلغاء", role: "مدير النظام",
+
+                submit: "حفظ ومزامنة", studentProfile: "ملخص الطالب", backToList: "العودة للقائمة",
+
+                netCash: "صافي الربح", inflow: "إجمالي الوارد", outflow: "إجمالي الصادر",
+
+                restricted: "إجراء مقيد.", searchPlaceholder: "بحث في السجلات...",
+
+                filterAll: "كل المستويات", addTeacher: "إضافة معلم", addCategory: "إضافة تصنيف",
+
+                addSub: "إضافة فرعي", addGrade: "إضافة مستوى", gradeName: "اسم المستوى",
+
+                gradeFee: "الرسوم الأساسية", todaySchedule: "محاضرات اليوم",
+
+                noLectures: "لا توجد محاضرات مجدولة لليوم.", empty: "لا توجد سجلات حالية.", action: "إجراء",
+
+                online: "متصل", offline: "غير متصل", exportExcel: "اكسل", exportPDF: "PDF",
+
+                confirmTitle: "تأكيد الحذف",
+
+                confirmMsgPre: "هل أنت متأكد من حذف",
+
+                confirmMsgPost: "؟ لا يمكن التراجع عن هذا الإجراء.",
+
+                confirmBtn: "نعم، احذف",
+
+                keepBtn: "لا، احتفظ به",
+
+                type_teacher: "المعلم", type_grade: "المستوى", type_category: "الفئة", type_subcategory: "الفئة الفرعية", type_entry: "السجل",
+
+                currency: "ج.م",
+
+                attendance: "الحضور والانصراف", attDate: "التاريخ", attType: "الفئة",
+
+                attPresent: "حاضر", attAbsent: "غائب", attSave: "حفظ السجلات",
+
+                attStudents: "الطلاب", attTeachers: "المعلمون", attSuccess: "تم حفظ كشف الحضور بنجاح.",
+
+                attLecture: "المحاضرة", attNote: "ملاحظة (في حال الغياب)", teachersMgmt: "إدارة المعلمين",
+
+                teacherTimeline: "الجدول الزمني والمواد", teacherHistory: "سجل الحضور والغياب",
+
+                cash_flow: "التدفق المالي", cash_flow_title: "كشف التدفق المالي",
+
+                cf_type: "تصفية بالنوع", cf_cat: "تصفية بالفئة",
+
+                type_all: "الكل", type_inflow: "وارد", type_outflow: "صادر",
+
+                securityAlert: "تنبيه أمني: فحص المصدر معطل لأسباب أمنية."
+
+            }
+
+        };
+
+
+
+        const ACADEMY_NAV = [
+
+            { id: 'dashboard', label: { en: 'Dashboard', ar: 'لوحة القيادة' }, icon: 'layout-dashboard' },
+
+            { id: 'students', label: { en: 'Students', ar: 'الطلاب' }, icon: 'users', tableCols: { en: ['Stu-ID', 'Student Name', 'Age', 'Phone', 'Grade'], ar: ['رقم الطالب', 'اسم الطالب', 'العمر', 'الهاتف', 'السنة الدراسية'] } },
+
+            { id: 'teachers_mgmt', label: { en: 'Teachers', ar: 'المعلمون' }, icon: 'user-cog' },
+
+            { id: 'attendance', label: { en: 'Attendance', ar: 'الحضور والانصراف' }, icon: 'clipboard-check' },
+
+            { id: 'subjects', label: { en: 'Subjects', ar: 'المواد والجدول' }, icon: 'calendar-clock', tableCols: { en: ['Grade', 'Subject Name', 'Teacher Name', 'Day', 'Room', 'Start Time'], ar: ['المستوى', 'اسم المادة', 'المعلم', 'اليوم', 'القاعة', 'وقت البدء'] } },
+
+            { id: 'income', label: { en: 'Income', ar: 'الإيرادات' }, icon: 'trending-up', tableCols: { en: ['Stu-ID', 'Student Name', 'Category', 'Subcategory', 'Amount', 'Date'], ar: ['رقم الطالب', 'اسم الطالب', 'الفئة', 'الفئة الفرعية', 'المبلغ', 'التاريخ'] } },
+
+            { id: 'expenses', label: { en: 'Expenses', ar: 'المصاريف' }, icon: 'trending-down', tableCols: { en: ['Expense ID', 'Title', 'Category', 'Subcategory', 'Amount', 'Date'], ar: ['المعرف', 'العنوان', 'الفئة', 'الفئة الفرعية', 'المبلغ', 'التاريخ'] } },
+
+            { id: 'cash_flow', label: { en: 'Cash Flow', ar: 'التدفق المالي' }, icon: 'arrow-left-right', tableCols: { en: ['Type', 'Label', 'Category', 'Amount', 'Date'], ar: ['النوع', 'البيان', 'الفئة', 'المبلغ', 'التاريخ'] } },
+
+            { id: 'config', label: { en: 'Settings', ar: 'الإعدادات' }, icon: 'settings-2', tableCols: { en: ['Entity', 'Detail', 'Value'], ar: ['الكيان', 'التفاصيل', 'القيمة'] } }
+
+        ];
+
+
+
+        // --- إدارة الحالة (State) ---
+
+        let state = {
+
+            page: 'dashboard',
+
+            darkMode: false,
+
+            language: 'en',
+
+            isModalOpen: false,
+
+            isSidebarOpen: false,
+
+            loading: false,
+
+            viewingStudentId: null,
+
+            viewingTeacherName: null,
+
+            searchQuery: '',
+
+            gradeFilter: 'All',
+
+            cfTypeFilter: 'All',
+
+            cfCatFilter: 'All',
+
+            attDate: new Date().toISOString().split('T')[0],
+
+            attType: 'Students',
+
+            attLecture: 'General',
+
+            tempAttendance: {}, 
+
+            user: null,
+
+            isConnected: false,
+
+            deleteConfirmation: null, 
+
+            data: {
+
+                students: [],
+
+                income: [],
+
+                expenses: [],
+
+                subjects: [],
+
+                attendance: [],
+
+                config: {
+
+                    teachers: [],
+
+                    gradeFees: {},
+
+                    incomeCategories: [],
+
+                    expenseCategories: []
+
+                }
+
+            }
+
+        };
+
+
+
+        const _t = (en, ar) => state.language === 'en' ? en : ar;
+
+        const ut = (key) => UI[state.language][key] || key;
+
+
+
+
+        const initSecurity = () => {
+
+            document.addEventListener('contextmenu', (e) => {
+
+                e.preventDefault();
+
+                pushNotify(ut('securityAlert'));
+
+            });
+
+
+
+            document.addEventListener('keydown', (e) => {
+
+                const isF12 = e.key === 'F12';
+
+                const isInspect = e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C');
+
+                const isViewSource = e.ctrlKey && (e.key === 'u' || e.key === 'U');
+
+                
+
+                if (isF12 || isInspect || isViewSource) {
+
+                    e.preventDefault();
+
+                    pushNotify(ut('securityAlert'));
+
+                    return false;
+
+                }
+
+            });
+
+        };
+
+
+
+
+        function getTotals() {
+
+            const inc = state.data.income.reduce((s, i) => s + (parseFloat(i.Amount) || 0), 0);
+
+            const exp = state.data.expenses.reduce((s, e) => s + (parseFloat(e.Amount) || 0), 0);
+
+            return { inc, exp, net: inc - exp };
+
+        }
+
+        function generateID(prefix = 'STU-', currentList = []) { 
+
+            let max = 0;
+
+            const idKey = prefix === 'STU-' ? 'Stu-ID' : 'Expense ID';
+
+            currentList.forEach(item => {
+
+                const idStr = item[idKey] || '';
+
+                const numPart = parseInt(idStr.replace(prefix, ''));
+
+                if (!isNaN(numPart) && numPart > max) max = numPart;
+
+            });
+
+            return prefix + String(max + 1).padStart(4, '0');
+
+        }
+
+
+
+        function pushNotify(msg) {
+
+            const container = document.getElementById('notification-container');
+
+            if (!container) return;
+
+            const toast = document.createElement('div');
+
+            toast.className = 'bg-mantiq-navy dark:bg-slate-800 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 fade-in border-l-4 border-rose-500 transition-all';
+
+            toast.innerHTML = `<i data-lucide="shield-alert" class="text-rose-500 w-5 h-5"></i><span class="text-xs font-bold">${msg}</span>`;
+
+            container.appendChild(toast); lucide.createIcons();
+
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 4000);
+
+        }
+
+
+
+
+        function getFilteredDataForExport() {
+
+            if (state.page === 'cash_flow') {
+
+                let all = [
+
+                    ...state.data.income.map(i => ({...i, Type: 'Inflow', Label: i['Student Name']})),
+
+                    ...state.data.expenses.map(e => ({...e, Type: 'Outflow', Label: e['Title']}))
+
+                ].sort((a,b) => new Date(b.Date) - new Date(a.Date));
+
+                if (state.searchQuery) {
+
+                    const q = state.searchQuery.toLowerCase();
+
+                    all = all.filter(x => x.Label.toLowerCase().includes(q) || x.Category?.toLowerCase().includes(q));
+
+                }
+
+                if (state.cfTypeFilter !== 'All') all = all.filter(x => x.Type === state.cfTypeFilter);
+
+                if (state.cfCatFilter !== 'All') all = all.filter(x => x.Category === state.cfCatFilter);
+
+                return { data: all, cols: ['Type', 'Label', 'Category', 'Amount', 'Date'] };
+
+            } else {
+
+                const nav = ACADEMY_NAV.find(n => n.id === state.page);
+
+                let raw = state.data[state.page] || [];
+
+                if (state.searchQuery) {
+
+                    const q = state.searchQuery.toLowerCase();
+
+                    raw = raw.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
+
+                }
+
+                if (state.gradeFilter !== 'All' && nav.tableCols?.en?.includes('Grade')) raw = raw.filter(r => r.Grade === state.gradeFilter);
+
+                return { data: raw, cols: nav.tableCols.en };
+
+            }
+
+        }
+
+
+
+        window.handleExportExcel = () => {
+
+            const { data, cols } = getFilteredDataForExport();
+
+            if (!data || data.length === 0) return pushNotify("No data to export");
+
+            const cleanData = data.map(item => {
+
+                const row = {};
+
+                cols.forEach(col => row[col] = item[col] || '-');
+
+                return row;
+
+            });
+
+            const ws = XLSX.utils.json_to_sheet(cleanData);
+
+            const wb = XLSX.utils.book_new();
+
+            XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+
+            XLSX.writeFile(wb, `MANTIQ_${state.page}_${new Date().getTime()}.xlsx`);
+
+        };
+
+
+
+        window.handleExportPDF = () => {
+
+            const { data, cols } = getFilteredDataForExport();
+
+            if (!data || data.length === 0) return pushNotify("No data to export");
+
+
+
+            const { jsPDF } = window.jspdf;
+
+            const doc = new jsPDF('l', 'mm', 'a4');
+
+            const timestamp = new Date().toLocaleString(state.language === 'ar' ? 'ar-EG' : 'en-US');
+
+            const pageName = _t(ACADEMY_NAV.find(n => n.id === state.page).label.en, ACADEMY_NAV.find(n => n.id === state.page).label.ar);
+
+
+
+            doc.setFillColor(0, 30, 60);
+
+            doc.rect(0, 0, 297, 30, 'F');
+
+            doc.setTextColor(255, 255, 255);
+
+            doc.setFontSize(22);
+
+            doc.text(`MANTIQ ACADEMY - ${pageName.toUpperCase()}`, 14, 20);
+
+
+
+            doc.setTextColor(100, 100, 100);
+
+            doc.setFontSize(10);
+
+            doc.text(`Exported On: ${timestamp}`, 220, 40);
+
+            
+
+            let filtersText = `Filters Applied: Search: ${state.searchQuery || 'None'}, `;
+
+            if (state.page === 'cash_flow') {
+
+                filtersText += `Type: ${state.cfTypeFilter}, Category: ${state.cfCatFilter}`;
+
+            } else if (ACADEMY_NAV.find(n => n.id === state.page).tableCols.en.includes('Grade')) {
+
+                filtersText += `Grade: ${state.gradeFilter}`;
+
+            } else {
+
+                filtersText += "None";
+
+            }
+
+            doc.text(filtersText, 14, 40);
+
+
+
+            const body = data.map(item => cols.map(c => item[c] || '-'));
+
+            const translatedHeaders = cols.map(c => {
+
+                const nav = ACADEMY_NAV.find(n => n.id === state.page);
+
+                if (nav && nav.tableCols) {
+
+                    const idx = nav.tableCols.en.indexOf(c);
+
+                    return idx !== -1 ? _t(nav.tableCols.en[idx], nav.tableCols.ar[idx]) : c;
+
+                }
+
+                return c;
+
+            });
+
+
+
+            doc.autoTable({
+
+                head: [translatedHeaders],
+
+                body: body,
+
+                startY: 45,
+
+                theme: 'striped',
+
+                headStyles: { fillColor: [56, 189, 248], textColor: 255, fontSize: 10, fontStyle: 'bold' },
+
+                bodyStyles: { fontSize: 9 },
+
+                alternateRowStyles: { fillColor: [245, 250, 255] },
+
+                margin: { top: 45 }
+
+            });
+
+
+
+            doc.save(`MANTIQ_${state.page}_Report.pdf`);
+
+        };
+
+
+
+
+        window.setPage = (p) => { 
+
+            state.page = p; 
+
+            state.viewingStudentId = null; 
+
+            state.viewingTeacherName = null;
+
+            state.searchQuery = ''; 
+
+            state.gradeFilter = 'All';
+
+            state.cfTypeFilter = 'All';
+
+            state.cfCatFilter = 'All';
+
+            state.isSidebarOpen = false;
+
+            state.tempAttendance = {};
+
+            render(); 
+
+        };
+
+        window.handleSearch = (val) => { state.searchQuery = val; render(); };
+
+        window.handleGradeFilter = (val) => { state.gradeFilter = val; render(); };
+
+        window.handleCFTypeFilter = (val) => { state.cfTypeFilter = val; render(); };
+
+        window.handleCFCatFilter = (val) => { state.cfCatFilter = val; render(); };
+
+        window.toggleSidebar = () => { state.isSidebarOpen = !state.isSidebarOpen; render(); };
+
+        window.toggleDarkMode = () => { state.darkMode = !state.darkMode; document.documentElement.classList.toggle('dark'); render(); };
+
+        window.toggleLanguage = () => { 
+
+            state.language = state.language === 'en' ? 'ar' : 'en'; 
+
+            document.body.dir = state.language === 'ar' ? 'rtl' : 'ltr'; 
+
+            render(); 
+
+        };
+
+        window.openModal = () => { state.isModalOpen = true; render(); };
+
+        window.closeModal = () => { state.isModalOpen = false; render(); };
+
+        window.setViewingStudent = (id) => { state.viewingStudentId = id; render(); };
+
+        window.setViewingTeacher = (name) => { state.viewingTeacherName = name; render(); };
+
+
+
+
+        window.handleAttDateChange = (date) => { 
+
+            state.attDate = date; 
+
+            state.tempAttendance = {}; 
+
+            state.attLecture = 'General';
+
+            render(); 
+
+        };
+
+        window.handleAttTypeChange = (type) => { state.attType = type; state.tempAttendance = {}; render(); };
+
+        window.handleAttLectureChange = (lec) => { state.attLecture = lec; state.tempAttendance = {}; render(); };
+
+        window.setAttStatus = (id, status) => { 
+
+            if (!state.tempAttendance[id]) state.tempAttendance[id] = { status: null, note: "" };
+
+            state.tempAttendance[id].status = status; 
+
+            render(); 
+
+        };
+
+        window.setAttNote = (id, note) => {
+
+            if (!state.tempAttendance[id]) state.tempAttendance[id] = { status: null, note: "" };
+
+            state.tempAttendance[id].note = note;
+
+        };
+
+
+
+        window.saveAttendance = async () => {
+
+            if (!state.user) return;
+
+            const db = window.mantiqDb; const appId = window.mantiqAppId;
+
+            const entries = Object.entries(state.tempAttendance);
+
+            if (entries.length === 0) return pushNotify("No records to save.");
+
+            state.loading = true; render();
+
+            try {
+
+                for (const [id, data] of entries) {
+
+                    if (!data.status) continue;
+
+                    const label = state.attType === 'Students' 
+
+                        ? state.data.students.find(s => s['Stu-ID'] === id)?.['Student Name'] 
+
+                        : id;
+
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'attendance'), {
+
+                        Date: state.attDate, Type: state.attType, Lecture: state.attLecture,
+
+                        TargetID: id, Label: label || id, Status: data.status,
+
+                        Note: data.status === 'Absent' ? data.note : "", Timestamp: Date.now()
+
+                    });
+
+                }
+
+                pushNotify(ut('attSuccess'));
+
+                state.tempAttendance = {};
+
+            } catch (err) { console.error(err); }
+
+            state.loading = false; render();
+
+        };
+
+
+
+
+        window.addTeacher = async () => {
+
+            const input = document.getElementById('config-teacher-input');
+
+            const name = input.value.trim();
+
+            if (name) { state.data.config.teachers.push(name); input.value = ''; await updateFirebaseConfig(); render(); }
+
+        };
+
+        window.deleteTeacher = (index) => {
+
+            const label = state.data.config.teachers[index];
+
+            window.askForConfirmation(async () => {
+
+                state.data.config.teachers.splice(index, 1); await updateFirebaseConfig();
+
+            }, 'type_teacher', label);
+
+        };
+
+        window.addGrade = async () => {
+
+            const nameInput = document.getElementById('config-grade-name-input');
+
+            const feeInput = document.getElementById('config-grade-fee-input');
+
+            const name = nameInput.value.trim(); const fee = parseFloat(feeInput.value);
+
+            if (name && !isNaN(fee)) { state.data.config.gradeFees[name] = fee; nameInput.value = ''; feeInput.value = ''; await updateFirebaseConfig(); render(); }
+
+        };
+
+        window.deleteGrade = (grade) => {
+
+            window.askForConfirmation(async () => {
+
+                delete state.data.config.gradeFees[grade]; await updateFirebaseConfig();
+
+            }, 'type_grade', grade);
+
+        };
+
+        window.addCategory = async (type) => {
+
+            const input = document.getElementById(`config-${type}-cat-input`);
+
+            const name = input.value.trim();
+
+            if (name) {
+
+                const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
+
+                list.push({ name, subs: [] });
+
+                input.value = ''; await updateFirebaseConfig(); render();
+
+            }
+
+        };
+
+        window.deleteCategory = (type, index) => {
+
+            const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
+
+            const label = list[index].name;
+
+            window.askForConfirmation(async () => {
+
+                list.splice(index, 1); await updateFirebaseConfig();
+
+            }, 'type_category', label);
+
+        };
+
+        window.addSub = async (type, catIdx) => {
+
+            const input = document.getElementById(`config-${type}-sub-input-${catIdx}`);
+
+            const name = input.value.trim();
+
+            if (name) {
+
+                const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
+
+                list[catIdx].subs.push(name);
+
+                input.value = ''; await updateFirebaseConfig(); render();
+
+            }
+
+        };
+
+        window.deleteSub = (type, catIdx, subIdx) => {
+
+            const list = type === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
+
+            const label = list[catIdx].subs[subIdx];
+
+            window.askForConfirmation(async () => {
+
+                list[catIdx].subs.splice(subIdx, 1); await updateFirebaseConfig();
+
+            }, 'type_subcategory', label);
+
+        };
+
+
+
+
+
+
+        function renderDashboard() {
+
+            const totals = getTotals();
+
+            const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+
+            const lectures = state.data.subjects.filter(s => s.Day === today);
+
+            return `
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+
+                    <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-none shadow-sm"><h4 class="text-slate-400 text-[10px] font-black uppercase mb-2">${ut('assets')}</h4><p class="text-3xl font-black">${state.data.students.length}</p></div>
+
+                    <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-none shadow-sm"><h4 class="text-emerald-500 text-[10px] font-black uppercase mb-2">${ut('inflow')}</h4><p class="text-3xl font-black text-emerald-600">${totals.inc.toLocaleString()} <span class="text-xs font-bold">${ut('currency')}</span></p></div>
+
+                    <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-none shadow-sm"><h4 class="text-rose-500 text-[10px] font-black uppercase mb-2">${ut('outflow')}</h4><p class="text-3xl font-black text-rose-600">${totals.exp.toLocaleString()} <span class="text-xs font-bold">${ut('currency')}</span></p></div>
+
+                    <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-none shadow-sm"><h4 class="text-mantiq-cyan text-[10px] font-black uppercase mb-2">${ut('netCash')}</h4><p class="text-3xl font-black text-mantiq-cyan">${totals.net.toLocaleString()} <span class="text-xs font-bold">${ut('currency')}</span></p></div>
+
+                </div>
+
+                <h3 class="text-xl font-black uppercase mb-6 flex items-center gap-2"><i data-lucide="calendar"></i> ${ut('todaySchedule')}</h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                    ${lectures.length ? lectures.map(l => `<div class="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-none shadow-sm"><div class="flex justify-between items-center mb-4"><span class="text-[10px] font-black text-mantiq-cyan uppercase">${l.Room}</span><span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-[9px] font-black uppercase">${l.Grade}</span></div><h4 class="text-lg font-black">${l['Subject Name']}</h4><p class="text-xs text-slate-500 font-bold mb-4">${l['Teacher Name']}</p><div class="flex items-center gap-2 text-mantiq-cyan font-black text-xs pt-4 border-t border-slate-50 dark:border-slate-800"><i data-lucide="clock" size="14"></i> ${l['Start Time']}</div></div>`).join('') : `<div class="col-span-full py-20 text-center text-slate-300 font-black uppercase border-2 border-dashed border-slate-100 rounded-3xl">${ut('noLectures')}</div>`}
+
+                </div>
+
+            `;
+
+        }
+
+
+
+        function renderCashFlow() {
+
+            let all = [
+
+                ...state.data.income.map(i => ({...i, Type: 'Inflow', Label: i['Student Name']})),
+
+                ...state.data.expenses.map(e => ({...e, Type: 'Outflow', Label: e['Title']}))
+
+            ].sort((a,b) => new Date(b.Date) - new Date(a.Date));
+
+
+
+            const uniqueCats = [...new Set([...state.data.config.incomeCategories.map(c => c.name), ...state.data.config.expenseCategories.map(c => c.name)])];
+
+
+
+            if (state.searchQuery) {
+
+                const q = state.searchQuery.toLowerCase();
+
+                all = all.filter(x => x.Label.toLowerCase().includes(q) || x.Category?.toLowerCase().includes(q));
+
+            }
+
+            if (state.cfTypeFilter !== 'All') all = all.filter(x => x.Type === state.cfTypeFilter);
+
+            if (state.cfCatFilter !== 'All') all = all.filter(x => x.Category === state.cfCatFilter);
+
+
+
+            return `
+
+                <div class="fade-in space-y-8">
+
+                    <div class="flex flex-col lg:flex-row justify-between items-center gap-6">
+
+                        <h2 class="text-3xl font-black uppercase tracking-tighter">${ut('cash_flow')}</h2>
+
+                        <div class="flex gap-2">
+
+                             <button onclick="window.handleExportExcel()" class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200"><i data-lucide="file-spreadsheet" size="16"></i> Excel</button>
+
+                             <button onclick="window.handleExportPDF()" class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200"><i data-lucide="file-text" size="16"></i> PDF</button>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-none p-4 flex flex-col sm:flex-row gap-4 items-center">
+
+                        <div class="flex-1 w-full relative">
+
+                            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+
+                            <input type="text" placeholder="${ut('searchPlaceholder')}" oninput="window.handleSearch(this.value)" value="${state.searchQuery}" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none" />
+
+                        </div>
+
+                        <div class="w-full sm:w-auto flex flex-wrap gap-2">
+
+                            <div class="flex flex-col">
+
+                                <label class="text-[8px] font-black uppercase text-slate-400 mb-1 ml-2">${ut('cf_type')}</label>
+
+                                <select onchange="window.handleCFTypeFilter(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl text-xs font-bold outline-none">
+
+                                    <option value="All" ${state.cfTypeFilter==='All'?'selected':''}>${ut('type_all')}</option>
+
+                                    <option value="Inflow" ${state.cfTypeFilter==='Inflow'?'selected':''}>${ut('type_inflow')}</option>
+
+                                    <option value="Outflow" ${state.cfTypeFilter==='Outflow'?'selected':''}>${ut('type_outflow')}</option>
+
+                                </select>
+
+                            </div>
+
+                            <div class="flex flex-col">
+
+                                <label class="text-[8px] font-black uppercase text-slate-400 mb-1 ml-2">${ut('cf_cat')}</label>
+
+                                <select onchange="window.handleCFCatFilter(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl text-xs font-bold outline-none">
+
+                                    <option value="All" ${state.cfCatFilter==='All'?'selected':''}>${ut('type_all')}</option>
+
+                                    ${uniqueCats.map(c => `<option value="${c}" ${state.cfCatFilter===c?'selected':''}>${c}</option>`).join('')}
+
+                                </select>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-none p-6 shadow-sm overflow-hidden">
+
+                        <div class="overflow-x-auto custom-scrollbar">
+
+                            <table class="w-full text-left">
+
+                                <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase font-black text-slate-400">
+
+                                    <tr><th class="px-6 py-4">Type</th><th class="px-6 py-4">Label</th><th class="px-6 py-4">Category</th><th class="px-6 py-4">Amount</th><th class="px-6 py-4">Date</th></tr>
+
+                                </thead>
+
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+
+                                    ${all.map(t => `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20"><td class="px-6 py-5"><span class="px-3 py-1 rounded text-[8px] font-black uppercase ${t.Type==='Inflow'?'bg-emerald-50 text-emerald-600':'bg-rose-50 text-rose-600'}">${t.Type}</span></td><td class="px-6 py-5 font-bold text-sm">${t.Label}</td><td class="px-6 py-5 text-xs text-slate-500">${t.Category||'-'}</td><td class="px-6 py-5 font-black text-sm ${t.Type==='Inflow'?'text-emerald-600':'text-rose-600'}">${t.Amount}</td><td class="px-6 py-5 text-xs text-slate-400">${t.Date}</td></tr>`).join('')}
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            `;
+
+        }
+
+
+
+        function renderAttendance() {
+
+            const dayName = new Date(state.attDate).toLocaleDateString('en-US', { weekday: 'long' });
+
+            const subjectsToday = state.data.subjects.filter(s => s.Day === dayName);
+
+            
+
+            let list = [];
+
+            if (state.attType === 'Students') {
+
+                const gradesToday = [...new Set(subjectsToday.map(s => s.Grade))];
+
+                list = state.data.students.filter(stu => gradesToday.includes(stu.Grade));
+
+            } else {
+
+                const teachersToday = [...new Set(subjectsToday.map(s => s['Teacher Name']))];
+
+                list = state.data.config.teachers.filter(t => teachersToday.includes(t));
+
+            }
+
+
+
+            const records = state.data.attendance.filter(a => a.Date === state.attDate && a.Type === state.attType && a.Lecture === state.attLecture);
+
+
+
+            return `
+
+                <div class="fade-in space-y-8">
+
+                    <div class="flex flex-col lg:flex-row justify-between gap-6">
+
+                        <h2 class="text-3xl font-black uppercase tracking-tighter">${ut('attendance')}</h2>
+
+                        <div class="flex flex-wrap gap-4 items-end bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-none">
+
+                            <div>
+
+                                <label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">${ut('attDate')}</label>
+
+                                <input type="date" value="${state.attDate}" onchange="window.handleAttDateChange(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none" />
+
+                            </div>
+
+                            <div>
+
+                                <label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">${ut('attType')}</label>
+
+                                <select onchange="window.handleAttTypeChange(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none">
+
+                                    <option value="Students" ${state.attType==='Students'?'selected':''}>${ut('attStudents')}</option>
+
+                                    <option value="Teachers" ${state.attType==='Teachers'?'selected':''}>${ut('attTeachers')}</option>
+
+                                </select>
+
+                            </div>
+
+                            <div>
+
+                                <label class="text-[9px] font-black uppercase text-slate-400 mb-1 block">${ut('attLecture')}</label>
+
+                                <select onchange="window.handleAttLectureChange(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold outline-none">
+
+                                    <option value="General" ${state.attLecture==='General'?'selected':''}>General</option>
+
+                                    ${subjectsToday.map(s => `<option value="${s['Subject Name']}" ${state.attLecture===s['Subject Name']?'selected':''}>${s['Subject Name']} (${s.Grade})</option>`).join('')}
+
+                                </select>
+
+                            </div>
+
+                            <button onclick="window.saveAttendance()" class="bg-mantiq-navy dark:bg-mantiq-cyan dark:text-mantiq-navy text-white px-8 py-3 rounded-xl font-black text-xs uppercase shadow-lg hover:scale-105 transition-all">${ut('attSave')}</button>
+
+                        </div>
+
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm overflow-hidden">
+
+                        <div class="overflow-x-auto">
+
+                            <table class="w-full text-left">
+
+                                <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase">
+
+                                    <tr><th class="px-8 py-6">Name</th><th class="px-8 py-6">Status</th><th class="px-8 py-6">Note</th><th class="px-8 py-6 text-center">Action</th></tr>
+
+                                </thead>
+
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+
+                                    ${list.length > 0 ? list.map(item => {
+
+                                        const id = state.attType === 'Students' ? item['Stu-ID'] : item;
+
+                                        const name = state.attType === 'Students' ? item['Student Name'] : item;
+
+                                        const r = records.find(x => x.TargetID === id);
+
+                                        const status = state.tempAttendance[id]?.status || (r ? r.Status : null);
+
+                                        const note = state.tempAttendance[id]?.note || (r ? r.Note : "");
+
+                                        return `<tr>
+
+                                            <td class="px-8 py-5">
+
+                                                <p class="text-sm font-black">${name}</p>
+
+                                                ${state.attType==='Students'?`<p class="text-[9px] text-slate-400 font-black">${id} - Grade: ${item.Grade}</p>`:''}
+
+                                            </td>
+
+                                            <td class="px-8 py-5">
+
+                                                ${status?`<span class="px-3 py-1 rounded text-[8px] font-black uppercase ${status==='Present'?'bg-emerald-50 text-emerald-600':'bg-rose-50 text-rose-600'}">${status}</span>`:'-'}
+
+                                            </td>
+
+                                            <td class="px-8 py-5">
+
+                                                ${status==='Absent'?`<input type="text" placeholder="Note..." oninput="window.setAttNote('${id}', this.value)" value="${note}" class="bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded text-xs outline-none w-full max-w-[150px]" />`:'-'}
+
+                                            </td>
+
+                                            <td class="px-8 py-5 flex justify-center gap-2">
+
+                                                <button onclick="window.setAttStatus('${id}','Present')" class="px-4 py-2 rounded-xl text-[9px] font-black uppercase ${status==='Present'?'bg-emerald-500 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-400'}">${ut('attPresent')}</button>
+
+                                                <button onclick="window.setAttStatus('${id}','Absent')" class="px-4 py-2 rounded-xl text-[9px] font-black uppercase ${status==='Absent'?'bg-rose-500 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-400'}">${ut('attAbsent')}</button>
+
+                                            </td>
+
+                                        </tr>`;
+
+                                    }).join('') : `<tr><td colspan="4" class="py-20 text-center text-slate-300 font-black uppercase">${dayName}: ${ut('noLectures')}</td></tr>`}
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            `;
+
+        }
+
+
+
+        function renderTeachersMgmt() {
+
+            return `
+
+                <div class="fade-in space-y-8"><h2 class="text-3xl font-black uppercase tracking-tighter">${ut('teachersMgmt')}</h2><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">${state.data.config.teachers.map(name => `<div onclick="window.setViewingTeacher('${name}')" class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-200 dark:border-none hover:shadow-xl transition-all cursor-pointer group"><div class="flex items-center gap-6"><div class="w-16 h-16 bg-mantiq-navy text-white rounded-2xl flex items-center justify-center font-black text-xl group-hover:bg-mantiq-cyan transition-colors">${name.charAt(0)}</div><h4 class="text-lg font-black text-mantiq-navy dark:text-white uppercase">${name}</h4></div><div class="mt-8 pt-6 border-t border-slate-50 dark:border-slate-800 flex justify-between items-center"><span class="text-[9px] font-black text-mantiq-cyan uppercase tracking-widest">View Profile</span><i data-lucide="${state.language==='ar'?'arrow-left':'arrow-right'}" size="16"></i></div></div>`).join('')}</div></div>
+
+            `;
+
+        }
+
+
+
+        function renderTeacherDetails(name) {
+
+            const subs = state.data.subjects.filter(s => s['Teacher Name'] === name);
+
+            const att = state.data.attendance.filter(a => a.TargetID === name).sort((a,b) => b.Timestamp - a.Timestamp);
+
+            return `
+
+                <div class="fade-in space-y-8"><button onclick="window.setViewingTeacher(null)" class="text-[10px] font-black uppercase text-slate-400 hover:text-mantiq-cyan"><i data-lucide="arrow-left" class="inline mb-1"></i> ${ut('backToList')}</button><h2 class="text-3xl font-black uppercase">${name}</h2><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-200 dark:border-none"><h3 class="font-black text-sm uppercase mb-6 flex items-center gap-2"><i data-lucide="calendar"></i> ${ut('teacherTimeline')}</h3><div class="space-y-4">${subs.length ? subs.map(s => `<div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-l-4 border-mantiq-cyan"><p class="font-black text-sm">${s['Subject Name']}</p><p class="text-[10px] font-bold text-slate-400">${s.Day} | ${s['Start Time']} | Room: ${s.Room}</p></div>`).join('') : '<p class="text-xs text-slate-400 italic">No schedule</p>'}</div></div><div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-200 dark:border-none"><h3 class="font-black text-sm uppercase mb-6 flex items-center gap-2"><i data-lucide="history"></i> ${ut('teacherHistory')}</h3><div class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar">${att.length ? att.map(a => `<div class="flex justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl"><div><p class="text-xs font-bold">${a.Date}</p><p class="text-[9px] text-slate-400 uppercase">${a.Lecture}</p></div><span class="text-[8px] font-black uppercase ${a.Status==='Present'?'text-emerald-500':'text-rose-500'}">${a.Status}</span></div>`).join('') : '<p class="text-xs text-slate-400 italic">No history</p>'}</div></div></div></div>
+
+            `;
+
+        }
+
+
+
+        function renderStudentSummary(id) {
+
+            const s = state.data.students.find(x => x['Stu-ID'] === id);
+
+            const att = state.data.attendance.filter(a => a.TargetID === id).sort((a,b) => b.Timestamp - a.Timestamp);
+
+            return `
+
+                <div class="fade-in space-y-8"><button onclick="window.setViewingStudent(null)" class="text-[10px] font-black uppercase text-slate-400 hover:text-mantiq-cyan"><i data-lucide="arrow-left" class="inline mb-1"></i> ${ut('backToList')}</button><h2 class="text-3xl font-black uppercase">${s['Student Name']}</h2><div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-200 dark:border-none flex flex-col items-center"><div class="w-20 h-20 bg-mantiq-navy text-white rounded-3xl flex items-center justify-center font-black text-3xl mb-6 shadow-xl">${s['Student Name'].charAt(0)}</div><div class="w-full space-y-3 pt-6 border-t dark:border-slate-800">${Object.entries(s).map(([k,v]) => k!=='id' ? `<div class="flex justify-between"><span class="text-[9px] font-black text-slate-400 uppercase">${k}</span><span class="text-xs font-bold">${v}</span></div>` : '').join('')}</div></div><div class="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-200 dark:border-none"><h3 class="font-black text-sm uppercase mb-6 flex items-center gap-2"><i data-lucide="history"></i> Attendance History</h3><div class="space-y-3">${att.length ? att.map(a => `<div class="flex justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl"><div><p class="text-xs font-bold">${a.Date} | ${a.Lecture}</p><p class="text-[9px] text-slate-400 font-bold uppercase">${a.Note || 'No notes'}</p></div><span class="font-black uppercase text-[10px] ${a.Status==='Present'?'text-emerald-600':'text-rose-600'}">${a.Status}</span></div>`).join('') : '<p class="text-xs text-slate-400 italic">No records</p>'}</div></div></div></div>
+
+            `;
+
+        }
+
+
+
+        function renderTable() {
+
+            const nav = ACADEMY_NAV.find(n => n.id === state.page);
+
+            let raw = state.data[state.page] || [];
+
+            if (state.searchQuery) {
+
+                const q = state.searchQuery.toLowerCase();
+
+                raw = raw.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
+
+            }
+
+            if (state.gradeFilter !== 'All' && nav.tableCols?.en?.includes('Grade')) raw = raw.filter(r => r.Grade === state.gradeFilter);
+
+            return `
+
+                <div class="flex flex-col lg:flex-row justify-between gap-6 mb-10"><div><h2 class="text-3xl font-black uppercase tracking-tighter">${_t(nav.label.en, nav.label.ar)}</h2><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">${raw.length} Results</p></div><div class="flex flex-wrap gap-2"><button onclick="window.handleExportExcel()" class="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-200"><i data-lucide="file-spreadsheet" size="16"></i> Excel</button><button onclick="window.handleExportPDF()" class="bg-rose-100 text-rose-700 px-4 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-rose-200"><i data-lucide="file-text" size="16"></i> PDF</button><button onclick="window.openModal()" class="bg-mantiq-navy dark:bg-mantiq-cyan dark:text-mantiq-navy text-white px-8 py-4 rounded-xl font-black text-xs uppercase shadow-xl hover:scale-105 transition-all">${ut('addRecord')}</button></div></div>
+
+                <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-none mb-8 p-4 flex flex-col sm:flex-row gap-4 items-center"><div class="flex-1 w-full relative"><i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i><input type="text" placeholder="${ut('searchPlaceholder')}" oninput="window.handleSearch(this.value)" class="w-full bg-slate-50 dark:bg-slate-800 pl-12 pr-4 py-3 rounded-xl text-sm outline-none" /></div>${nav.tableCols?.en?.includes('Grade') ? `<select onchange="window.handleGradeFilter(this.value)" class="bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl text-xs font-bold outline-none"><option value="All">${ut('filterAll')}</option>${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}">${g}</option>`).join('')}</select>` : ''}</div>
+
+                <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-none overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-left"><thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase"><tr>${(nav.tableCols?.en || []).map((c,i) => `<th class="px-6 py-5 whitespace-nowrap">${_t(c, nav.tableCols.ar[i])}</th>`).join('')}<th class="px-6 py-5 text-center">Action</th></tr></thead><tbody class="divide-y divide-slate-100 dark:divide-slate-800">${raw.map(row => {
+
+                    const labelEscaped = String(row['Student Name']||row['Title']||row['Subject Name']||row.id).replace(/'/g, "\\'");
+
+                    return `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20">${(nav.tableCols?.en || []).map(k => `<td class="px-6 py-4 font-bold text-sm whitespace-nowrap">${row[k] || '-'}</td>`).join('')}<td class="px-6 py-4 text-center flex justify-center gap-2">${state.page==='students'?`<button onclick="window.setViewingStudent('${row['Stu-ID']}')" class="p-2 text-mantiq-cyan hover:bg-mantiq-cyan/10 rounded-xl transition-all"><i data-lucide="user" size="18"></i></button>`:''}<button onclick="window.deleteEntry('${row.id}', '${labelEscaped}')" class="p-2 text-slate-300 hover:text-rose-500 transition-all"><i data-lucide="trash-2" size="18"></i></button></td></tr>`;
+
+                }).join('')}</tbody></table></div></div>
+
+            `;
+
+        }
+
+
+
+        function renderConfig() {
+
+            return `
+
+                <div class="fade-in space-y-8 pb-20">
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                        <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-200 dark:border-none"><h3 class="font-black text-sm uppercase mb-6 flex items-center gap-2"><i data-lucide="user-plus"></i> Teachers</h3>
+
+                        <div class="flex gap-2 mb-6"><input id="config-teacher-input" class="flex-1 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none text-xs font-bold" placeholder="Teacher Name..." /><button onclick="window.addTeacher()" class="bg-mantiq-navy dark:bg-slate-700 text-white p-3 rounded-xl hover:scale-105 transition-all"><i data-lucide="plus"></i></button></div>
+
+                        <div class="space-y-2">${state.data.config.teachers.map((t,i) => `<div class="flex justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl"><span>${t}</span><button onclick="window.deleteTeacher(${i})"><i data-lucide="trash-2" class="text-rose-400 w-4 h-4"></i></button></div>`).join('')}</div></div>
+
+                        <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-200 dark:border-none"><h3 class="font-black text-sm uppercase mb-6 flex items-center gap-2"><i data-lucide="graduation-cap"></i> Grades & Fees</h3>
+
+                        <div class="space-y-3 mb-6"><input id="config-grade-name-input" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none text-xs font-bold" placeholder="Grade Name (e.g. Year 1)..." /><div class="flex gap-2"><input id="config-grade-fee-input" type="number" class="flex-1 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none text-xs font-bold" placeholder="Base Fee..." /><button onclick="window.addGrade()" class="bg-mantiq-navy dark:bg-slate-700 text-white px-6 rounded-xl font-black text-[10px] uppercase">Add</button></div></div>
+
+                        <div class="space-y-2">${Object.entries(state.data.config.gradeFees).map(([g,f]) => `<div class="flex justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl"><div><p class="font-black text-xs">${g}</p><p class="text-[9px] text-mantiq-cyan font-bold uppercase">${f} ${ut('currency')}</p></div><button onclick="window.deleteGrade('${g}')"><i data-lucide="trash-2" class="text-rose-400 w-4 h-4"></i></button></div>`).join('')}</div></div>
+
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                        ${['income','expense'].map(type => `
+
+                            <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-200 dark:border-none"><h3 class="font-black text-sm uppercase mb-6 flex items-center gap-2"><i data-lucide="layers"></i> ${type.charAt(0).toUpperCase()+type.slice(1)} Categories</h3>
+
+                            <div class="flex gap-2 mb-6"><input id="config-${type}-cat-input" class="flex-1 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none text-xs font-bold" placeholder="Category Name..." /><button onclick="window.addCategory('${type}')" class="bg-mantiq-navy dark:bg-slate-700 text-white p-3 rounded-xl"><i data-lucide="plus"></i></button></div>
+
+                            <div class="space-y-4">${(type==='income'?state.data.config.incomeCategories:state.data.config.expenseCategories).map((c,ci) => `
+
+                                <div class="p-5 bg-slate-50 dark:bg-slate-800/30 rounded-2xl"><div class="flex justify-between items-center mb-3"><span class="text-[10px] font-black uppercase text-mantiq-navy dark:text-white">${c.name}</span><button onclick="window.deleteCategory('${type}',${ci})"><i data-lucide="trash-2" class="text-rose-400 w-4 h-4"></i></button></div>
+
+                                <div class="flex flex-wrap gap-2 mb-4">${c.subs.map((s,si) => `<span class="bg-white dark:bg-slate-700 px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-2 shadow-sm">${s}<button onclick="window.deleteSub('${type}',${ci},${si})"><i data-lucide="x" class="text-rose-400 w-3 h-3"></i></button></span>`).join('')}</div>
+
+                                <div class="flex gap-2"><input id="config-${type}-sub-input-${ci}" class="flex-1 bg-white dark:bg-slate-900 px-3 py-1 rounded-lg text-[9px] outline-none shadow-inner border border-slate-100 dark:border-none" placeholder="Subcategory..." /><button onclick="window.addSub('${type}',${ci})" class="text-mantiq-cyan hover:scale-110 transition-transform"><i data-lucide="plus-circle" size="18"></i></button></div></div>
+
+                            `).join('')}</div></div>
+
+                        `).join('')}
+
+                    </div>
+
+                </div>
+
+            `;
+
+        }
+
+
+
+        function renderModal() {
+
+            const nav = ACADEMY_NAV.find(n => n.id === state.page);
+
+            if (!nav || !nav.tableCols) return '';
+
+            
+
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+
+
+            const fields = nav.tableCols.en.map((c, i) => {
+
+                if (c==='Stu-ID'||c==='Expense ID') return '';
+
+                const label = _t(c, nav.tableCols.ar[i]);
+
+                
+
+                if (c==='Teacher Name') {
+
+                    return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${state.data.config.teachers.map(t => `<option value="${t}">${t}</option>`).join('')}</select></div>`;
+
+                }
+
+                if (c==='Grade') {
+
+                    return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${Object.keys(state.data.config.gradeFees).map(g => `<option value="${g}">${g}</option>`).join('')}</select></div>`;
+
+                }
+
+                if (c==='Day') {
+
+                    return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${days.map(d => `<option value="${d}">${d}</option>`).join('')}</select></div>`;
+
+                }
+
+                if (c==='Category') {
+
+                    const list = state.page === 'income' ? state.data.config.incomeCategories : state.data.config.expenseCategories;
+
+                    return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><select name="${c}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm">${list.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}</select></div>`;
+
+                }
+
+                
+
+                let inputType = 'text';
+
+                if (c.includes('Date')) inputType = 'date';
+
+                else if (c==='Amount') inputType = 'number';
+
+                else if (c==='Start Time') inputType = 'time';
+
+
+
+                return `<div class="mb-4"><label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">${label}</label><input name="${c}" type="${inputType}" class="w-full bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-xl outline-none font-bold text-sm" required /></div>`;
+
+            }).join('');
+
+
+
+            return `
+
+                <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-overlay fade-in">
+
+                    <div class="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
+
+                        <h2 class="text-2xl font-black uppercase tracking-tighter mb-8">${ut('addRecord')}</h2>
+
+                        <form id="add-form" onsubmit="window.handleAdd(event)">${fields}
+
+                            <div class="flex gap-3 mt-10"><button type="button" onclick="window.closeModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 py-4 rounded-2xl uppercase font-black text-xs text-slate-400">${ut('cancel')}</button><button type="submit" class="flex-1 bg-mantiq-navy dark:bg-mantiq-cyan dark:text-mantiq-navy text-white py-4 rounded-2xl uppercase font-black text-xs shadow-xl">${ut('submit')}</button></div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            `;
+
+        }
+
+
+
+        function renderConfirmationModal() {
+
+            return `
+
+                <div class="fixed inset-0 z-[120] flex items-center justify-center p-4 modal-overlay fade-in">
+
+                    <div class="bg-white dark:bg-slate-900 w-full max-md rounded-[2rem] p-8 text-center shadow-2xl"><div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="alert-triangle" size="32"></i></div><h2 class="text-2xl font-black uppercase mb-4 tracking-tighter">${ut('confirmTitle')}</h2><p class="text-slate-500 dark:text-slate-400 text-sm mb-10 leading-relaxed">${ut('confirmMsgPre')} ${ut(state.deleteConfirmation.typeKey)} ${ut('confirmMsgPost')}</p><div class="flex flex-col gap-3"><button onclick="window.executeDelete()" class="w-full bg-rose-500 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-xl">${ut('confirmBtn')}</button><button onclick="window.cancelDelete()" class="w-full bg-slate-100 dark:bg-slate-800 py-4 rounded-2xl font-black uppercase text-xs text-slate-400">${ut('keepBtn')}</button></div></div>
+
+                </div>
+
+            `;
+
+        }
+
+
+
+        function renderApp() {
+
+            const currentNav = ACADEMY_NAV.find(n => n.id === state.page);
+
+            const navItems = ACADEMY_NAV.map(item => `<button onclick="window.setPage('${item.id}')" class="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-sm font-bold transition-all ${state.page === item.id ? 'bg-mantiq-cyan text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400'}"><i data-lucide="${item.icon}" size="18"></i><span class="truncate">${_t(item.label.en, item.label.ar)}</span></button>`).join('');
+
+
+
+            let content;
+
+            if (state.viewingStudentId) content = renderStudentSummary(state.viewingStudentId);
+
+            else if (state.viewingTeacherName) content = renderTeacherDetails(state.viewingTeacherName);
+
+            else if (state.page === 'dashboard') content = renderDashboard();
+
+            else if (state.page === 'attendance') content = renderAttendance();
+
+            else if (state.page === 'teachers_mgmt') content = renderTeachersMgmt();
+
+            else if (state.page === 'cash_flow') content = renderCashFlow();
+
+            else if (state.page === 'config') content = renderConfig();
+
+            else content = renderTable();
+
+
+
+            return `
+
+                <div class="flex h-screen overflow-hidden">
+
+                    <aside id="sidebar" class="fixed lg:static w-72 flex flex-col h-full bg-white dark:bg-slate-900 border-slate-100 dark:border-none z-50 transition-transform ${state.language === 'en' ? 'left-0 border-r -translate-x-full' : 'right-0 border-l translate-x-full'} ${state.isSidebarOpen ? 'translate-x-0' : ''} lg:translate-x-0">
+
+                        <div class="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between"><div class="flex items-center gap-2"><div class="p-1.5 bg-mantiq-cyan rounded-xl"><i data-lucide="graduation-cap" class="text-white"></i></div><span class="text-xl font-black uppercase tracking-tighter">MANTIQ</span></div><button onclick="window.toggleSidebar()" class="lg:hidden"><i data-lucide="x"></i></button></div>
+
+                        <nav class="flex-1 p-6 space-y-1 overflow-y-auto custom-scrollbar">${navItems}</nav>
+
+                    </aside>
+
+                    <div class="flex-1 h-screen overflow-y-auto custom-scrollbar relative">
+
+                        <header class="h-20 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-100 dark:border-none sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10">
+
+                            <div class="flex items-center gap-4"><button onclick="window.toggleSidebar()" class="lg:hidden"><i data-lucide="menu"></i></button><h2 class="text-lg font-black uppercase tracking-tighter truncate">${_t(currentNav?.label?.en, currentNav?.label?.ar)}</h2></div>
+
+                            <div class="flex items-center gap-4">
+
+                                <div class="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full"><div class="w-2 h-2 rounded-full ${state.isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}"></div><span class="text-[8px] font-black uppercase text-slate-500">${state.isConnected ? ut('online') : ut('offline')}</span></div>
+
+                                <button onclick="window.toggleLanguage()" class="text-[10px] font-black uppercase px-4 py-2 border rounded-xl border-slate-200 dark:border-slate-700">${state.language==='en'?'Arabic':'English'}</button>
+
+                                <button onclick="window.toggleDarkMode()" class="p-2.5 bg-white border border-slate-200 rounded-full dark:bg-slate-800 dark:border-none shadow-sm"><i data-lucide="${state.darkMode ? 'sun' : 'moon'}" size="16"></i></button>
+
+                            </div>
+
+                        </header>
+
+                        <main class="p-6 lg:p-12 max-w-7xl mx-auto">${content}</main>
+
+                    </div>
+
+                </div>
+
+                ${state.isModalOpen ? renderModal() : ''}
+
+                ${state.deleteConfirmation ? renderConfirmationModal() : ''}
+
+            `;
+
+        }
+
+
+
+        function render() {
+
+            const root = document.getElementById('app');
+
+            if (root) {
+
+                root.innerHTML = renderApp();
+
+                lucide.createIcons();
+
+            }
+
+        }
+
+        window.handleAdd = async (e) => {
+
+            e.preventDefault(); if (!state.user) return;
+
+            const db = window.mantiqDb; const appId = window.mantiqAppId;
+
+            const fd = new FormData(e.target); const r = {}; fd.forEach((v,k) => r[k] = v);
+
+            if (state.page==='students') r['Stu-ID'] = generateID('STU-', state.data.students);
+
+            if (state.page==='expenses') r['Expense ID'] = generateID('EXP-', state.data.expenses);
+
+            state.loading = true; render();
+
+            try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.page), r); state.isModalOpen = false; } 
+
+            catch (err) { pushNotify("Error: " + err.message); }
+
+            state.loading = false; render();
+
+        };
+        window.askForConfirmation = (callback, typeKey, itemLabel) => {
+
+            state.deleteConfirmation = { callback, typeKey, itemLabel };
+
+            render();
+
+        };
+
+        window.cancelDelete = () => { state.deleteConfirmation = null; render(); };
+
+        window.executeDelete = async () => {
+
+            if (state.deleteConfirmation?.callback) await state.deleteConfirmation.callback();
+
+            state.deleteConfirmation = null;
+
+            render();
+
+        };
+
+        window.deleteEntry = (id, label) => {
+
+            window.askForConfirmation(async () => {
+
+                const db = window.mantiqDb; const appId = window.mantiqAppId;
+
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.page, id));
+
+            }, 'type_entry', label);
+
+        };
+
+        window.initAuth = async () => {
+
+            const auth = window.mantiqAuth;
+
+            try {
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+
+                else await signInAnonymously(auth);
+
+            } catch (error) { console.error(error); }
+
+            onAuthStateChanged(auth, (user) => {
+
+                state.user = user; state.isConnected = !!user;
+
+                if (user) setupListeners(); render();
+
+            });
+
+        };
+
+
+
+        function setupListeners() {
+
+            const db = window.mantiqDb; const appId = window.mantiqAppId;
+
+            const sync = (coll) => {
+
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', coll), (snap) => {
+
+                    state.data[coll] = snap.docs.map(d => ({ id: d.id, ...d.data() })); render();
+
+                });
+
+            };
+
+            ['students', 'income', 'expenses', 'subjects', 'attendance'].forEach(sync);
+
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), (ds) => {
+
+                if (ds.exists()) state.data.config = ds.data();
+
+                else setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), state.data.config);
+
+                render();
+
+            });
+
+        }
+
+
+
+        async function updateFirebaseConfig() {
+
+            if (!state.user) return;
+
+            const db = window.mantiqDb; const appId = window.mantiqAppId;
+
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'), state.data.config);
+
+        }
+
+        initSecurity();
+
+        window.initAuth();
+
+        render();
+
+    </script>
+
+</body>
+
+</html>
